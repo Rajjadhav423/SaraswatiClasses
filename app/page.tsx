@@ -186,7 +186,7 @@ export default function HomePage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-1.5">
                     <Label>Month</Label>
-                    <Select value={form.month} onValueChange={(v) => setField("month", v)}>
+                    <Select value={form.month} onValueChange={(v) => setField("month", v ?? form.month)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {MONTHS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}

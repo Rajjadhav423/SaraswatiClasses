@@ -47,7 +47,7 @@ function markNum(v: number | string) { return isAB(v) ? 0 : (Number(v) || 0); }
 function MemoBlock({ session, student }: { session: Session; student: Student }) {
   const N = session.subjects.length;
   const totalOutOf   = session.subjects.reduce((s, sub) => s + sub.outOf, 0);
-  const totalObtained = student.marks.reduce((s, m) => s + markNum(m), 0);
+  const totalObtained = student.marks.reduce((s: number, m) => s + markNum(m), 0);
 
   const td = (content: React.ReactNode, extra: React.CSSProperties = {}) => (
     <td style={{ ...CELL, ...extra }}>{content}</td>

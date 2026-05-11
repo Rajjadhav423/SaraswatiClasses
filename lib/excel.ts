@@ -66,8 +66,10 @@ function renderBlock(
 
   if (logoId !== null) {
     ws.addImage(logoId, {
-      tl: { col: cL - 1, row: base - 1 },       // 0-indexed
-      br: { col: cL,     row: base + 2 },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tl: { col: cL - 1, row: base - 1 } as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      br: { col: cL,     row: base + 2  } as any,
       editAs: "oneCell",
     });
   }
