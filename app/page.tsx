@@ -1,484 +1,320 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import ExcelJS from "exceljs";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { PlusCircle, Trash2, BookOpen, Calendar, Users, ChevronRight } from "lucide-react";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-type Subject = { id: string; name: string; outOf: string };
-type Student = { id: string; name: string; attendance: string; marks: Record<string, string> };
-type Config = {
+const MONTHS = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
+];
+
+interface Subject { name: string; outOf: number }
+interface Session {
+  _id: string;
   instituteName: string;
   className: string;
   month: string;
   year: string;
-  totalDays: string;
+  totalDays: number;
   managerName: string;
   subjects: Subject[];
-};
+  createdAt: string;
+}
 
-const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-const mkSubject = (name = "", outOf = "20"): Subject => ({ id: uid(), name, outOf });
-const mkStudent = (subjects: Subject[]): Student => ({
-  id: uid(), name: "", attendance: "",
-  marks: Object.fromEntries(subjects.map((s) => [s.id, ""])),
-});
-
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-
-const INITIAL_CONFIG: Config = {
+const EMPTY_FORM = {
   instituteName: "Shree Saraswati Classes, Kannad",
-  className: "11th Science",
+  className: "",
   month: "March",
-  year: "2026",
+  year: new Date().getFullYear().toString(),
   totalDays: "25",
   managerName: "Manager",
   subjects: [
-    mkSubject("Physics", "20"),
-    mkSubject("Chemistry", "20"),
-    mkSubject("Math", "20"),
-    mkSubject("Biology", "20"),
-    mkSubject("English", "20"),
-  ],
+    { name: "Physics", outOf: 20 },
+    { name: "Chemistry", outOf: 20 },
+    { name: "Math", outOf: 20 },
+    { name: "Biology", outOf: 20 },
+    { name: "English", outOf: 20 },
+  ] as Subject[],
 };
 
-// ─── Excel helpers ────────────────────────────────────────────────────────────
-const WHITE_ARGB  = "FFFFFFFF";
-const BLACK_ARGB  = "FF000000";
+export default function HomePage() {
+  const router = useRouter();
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
 
-function borderAll() {
-  const side = { style: "thin" as const, color: { argb: BLACK_ARGB } };
-  return { top: side, bottom: side, left: side, right: side };
-}
-
-function applyCell(
-  cell: ExcelJS.Cell,
-  value: string | number,
-  opts: { bold?: boolean; size?: number; fill?: string; halign?: ExcelJS.Alignment["horizontal"] },
-) {
-  cell.value = value;
-  cell.font = { name: "Arial", bold: opts.bold ?? true, size: opts.size ?? 11, color: { argb: BLACK_ARGB } };
-  cell.alignment = { horizontal: opts.halign ?? "center", vertical: "middle", wrapText: false };
-  cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: opts.fill ?? WHITE_ARGB } };
-  cell.border = borderAll();
-}
-
-async function generateExcel(config: Config, students: Student[]) {
-  const wb = new ExcelJS.Workbook();
-
-  // Try loading logo
-  let logoId: number | null = null;
-  try {
-    const resp = await fetch("/image.png");
-    if (resp.ok) {
-      const buf = await resp.arrayBuffer();
-      logoId = wb.addImage({ buffer: buf, extension: "png" });
+  async function loadSessions() {
+    try {
+      const res = await fetch("/api/sessions");
+      if (!res.ok) {
+        toast.error("Database connection failed. Please set MONGODB_URI in .env.local");
+        setLoading(false);
+        return;
+      }
+      setSessions(await res.json());
+    } catch {
+      toast.error("Cannot reach server. Is the dev server running?");
+    } finally {
+      setLoading(false);
     }
-  } catch { /* skip logo if unavailable */ }
+  }
 
-  const ws = wb.addWorksheet("Mark Memo");
-  ws.columns = [
-    { width: 13 }, // A – logo
-    { width: 22 }, // B – subject/label
-    { width: 10 }, // C – obtain
-    { width: 10 }, // D – total
-    { width: 20 }, // E – presenty
-  ];
+  useEffect(() => { loadSessions(); }, []);
 
-  const N = config.subjects.length;
-  // Per-student block row count:
-  // 3 header rows + 1 col-header row + N subject rows + 1 total + 1 manager + 1 signature + 1 spacer
-  const BLOCK = 3 + 1 + N + 1 + 1 + 1 + 1;
+  function setField<K extends keyof typeof EMPTY_FORM>(k: K, v: (typeof EMPTY_FORM)[K]) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
 
-  students.forEach((student, idx) => {
-    const base = 1 + idx * BLOCK; // 1-indexed
-
-    // ── Rows 1-3: title area ─────────────────────────────────────────────────
-    // Merge A col for logo (rows base..base+2)
-    ws.mergeCells(base, 1, base + 2, 1);
-    const logoCell = ws.getCell(base, 1);
-    logoCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE_ARGB } };
-    logoCell.border = borderAll();
-
-    // Row base: Institute name (B-E)
-    ws.mergeCells(base, 2, base, 5);
-    ws.getRow(base).height = 32;
-    applyCell(ws.getCell(base, 2), config.instituteName.toUpperCase(), { bold: true, size: 14, fill: WHITE_ARGB });
-
-    // Row base+1: Name & Class (B-E)
-    ws.mergeCells(base + 1, 2, base + 1, 5);
-    ws.getRow(base + 1).height = 26;
-    applyCell(ws.getCell(base + 1, 2), `Name-  ${student.name || "Student Name"}     ${config.className}`, { bold: true, size: 12, fill: WHITE_ARGB });
-
-    // Row base+2: Mark-Memo (B-E)
-    ws.mergeCells(base + 2, 2, base + 2, 5);
-    ws.getRow(base + 2).height = 26;
-    applyCell(ws.getCell(base + 2, 2), `MARK-MEMO ${config.month.toUpperCase()} ${config.year}`, { bold: true, size: 12, fill: WHITE_ARGB });
-
-    // Add logo image positioned over column A rows 1-3
-    if (logoId !== null) {
-      ws.addImage(logoId, {
-        tl: { col: 0, row: base - 1 },
-        br: { col: 1, row: base + 2 },
-        editAs: "oneCell",
-      });
-    }
-
-    // ── Row base+3: Column headers ───────────────────────────────────────────
-    const hRow = base + 3;
-    ws.getRow(hRow).height = 22;
-    applyCell(ws.getCell(hRow, 1), "", { fill: WHITE_ARGB });
-    ["Test", "Obtain", "Total", "Presenty"].forEach((h, i) => {
-      applyCell(ws.getCell(hRow, i + 2), h, { bold: true, size: 11, fill: WHITE_ARGB });
+  function setSubject(i: number, key: "name" | "outOf", val: string) {
+    setForm((f) => {
+      const subjects = f.subjects.map((s, idx) =>
+        idx === i ? { ...s, [key]: key === "outOf" ? Number(val) || 0 : val } : s
+      );
+      return { ...f, subjects };
     });
-
-    // ── Subject rows (base+4 … base+4+N-1) ──────────────────────────────────
-    const sStart = base + 4;
-
-    // Merge presenty column across all subject rows
-    if (N > 1) ws.mergeCells(sStart, 5, sStart + N - 1, 5);
-    const presCell = ws.getCell(sStart, 5);
-    applyCell(presCell, student.attendance || "", { bold: true, size: 13, fill: WHITE_ARGB });
-
-    let totalObtained = 0;
-    config.subjects.forEach((subj, si) => {
-      const r = sStart + si;
-      ws.getRow(r).height = 22;
-      const obtained = Number(student.marks[subj.id]) || 0;
-      totalObtained += obtained;
-
-      applyCell(ws.getCell(r, 1), "", { fill: WHITE_ARGB }); // col A empty
-      applyCell(ws.getCell(r, 2), subj.name || `Subject ${si + 1}`, { bold: true, size: 11, fill: WHITE_ARGB });
-      applyCell(ws.getCell(r, 3), obtained, { bold: true, size: 11, fill: WHITE_ARGB });
-      applyCell(ws.getCell(r, 4), Number(subj.outOf) || 0, { bold: true, size: 11, fill: WHITE_ARGB });
-    });
-
-    // ── Total row ────────────────────────────────────────────────────────────
-    const totalRow = sStart + N;
-    ws.getRow(totalRow).height = 22;
-    const totalOutOf = config.subjects.reduce((s, sub) => s + (Number(sub.outOf) || 0), 0);
-    applyCell(ws.getCell(totalRow, 1), "", { fill: WHITE_ARGB });
-    applyCell(ws.getCell(totalRow, 2), "Total", { bold: true, size: 11, fill: WHITE_ARGB });
-    applyCell(ws.getCell(totalRow, 3), totalObtained, { bold: true, size: 11, fill: WHITE_ARGB });
-    applyCell(ws.getCell(totalRow, 4), totalOutOf, { bold: true, size: 11, fill: WHITE_ARGB });
-    applyCell(ws.getCell(totalRow, 5), `Total Day ${config.totalDays || "-"}`, { bold: true, size: 11, fill: WHITE_ARGB });
-
-    // ── Manager row ──────────────────────────────────────────────────────────
-    const mgRow = totalRow + 1;
-    ws.getRow(mgRow).height = 20;
-    ws.mergeCells(mgRow, 1, mgRow, 4);
-    applyCell(ws.getCell(mgRow, 1), "", { fill: WHITE_ARGB });
-    applyCell(ws.getCell(mgRow, 5), config.managerName, { bold: true, size: 11, fill: WHITE_ARGB });
-
-    // ── Signature row ────────────────────────────────────────────────────────
-    const sigRow = totalRow + 2;
-    ws.getRow(sigRow).height = 22;
-    ws.mergeCells(sigRow, 1, sigRow, 4);
-    applyCell(ws.getCell(sigRow, 1), "Parents signature", { bold: true, size: 11, fill: WHITE_ARGB });
-    applyCell(ws.getCell(sigRow, 5), config.instituteName, { bold: true, size: 11, fill: WHITE_ARGB });
-
-    // ── Spacer row ───────────────────────────────────────────────────────────
-    ws.getRow(sigRow + 1).height = 10;
-  });
-
-  const buffer = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `mark-memo-${config.className.replace(/\s+/g, "-")}-${config.month}-${config.year}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
-export default function Home() {
-  const [step, setStep] = useState<"config" | "students">("config");
-  const [config, setConfig] = useState<Config>(INITIAL_CONFIG);
-  const [students, setStudents] = useState<Student[]>([mkStudent(INITIAL_CONFIG.subjects)]);
-  const [exporting, setExporting] = useState(false);
-
-  // ── Config helpers ──────────────────────────────────────────────────────────
-  function setConfigField<K extends keyof Config>(key: K, val: Config[K]) {
-    setConfig((c) => ({ ...c, [key]: val }));
   }
 
   function addSubject() {
-    const newSubj = mkSubject();
-    setConfig((c) => ({ ...c, subjects: [...c.subjects, newSubj] }));
-    setStudents((ss) => ss.map((s) => ({ ...s, marks: { ...s.marks, [newSubj.id]: "" } })));
+    setForm((f) => ({ ...f, subjects: [...f.subjects, { name: "", outOf: 20 }] }));
   }
 
-  function removeSubject(id: string) {
-    if (config.subjects.length === 1) return;
-    setConfig((c) => ({ ...c, subjects: c.subjects.filter((s) => s.id !== id) }));
-    setStudents((ss) => ss.map((s) => { const marks = { ...s.marks }; delete marks[id]; return { ...s, marks }; }));
+  function removeSubject(i: number) {
+    if (form.subjects.length === 1) return;
+    setForm((f) => ({ ...f, subjects: f.subjects.filter((_, idx) => idx !== i) }));
   }
 
-  function updateSubject(id: string, key: "name" | "outOf", val: string) {
-    setConfig((c) => ({ ...c, subjects: c.subjects.map((s) => s.id === id ? { ...s, [key]: val } : s) }));
+  async function createSession() {
+    if (!form.className.trim()) { toast.error("Class name is required"); return; }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, totalDays: Number(form.totalDays) }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const session: Session = await res.json();
+      toast.success("Session created!");
+      setOpen(false);
+      setForm(EMPTY_FORM);
+      router.push(`/session/${session._id}`);
+    } catch {
+      toast.error("Could not create session. Check MongoDB connection.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  // ── Student helpers ─────────────────────────────────────────────────────────
-  function addStudent() {
-    setStudents((ss) => [...ss, mkStudent(config.subjects)]);
+  async function deleteSession(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    if (!confirm("Delete this session and all its student data?")) return;
+    await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+    toast.success("Session deleted");
+    loadSessions();
   }
 
-  function removeStudent(id: string) {
-    if (students.length === 1) return;
-    setStudents((ss) => ss.filter((s) => s.id !== id));
-  }
-
-  function setStudentField(id: string, key: "name" | "attendance", val: string) {
-    setStudents((ss) => ss.map((s) => s.id === id ? { ...s, [key]: val } : s));
-  }
-
-  function setMark(studentId: string, subjectId: string, val: string) {
-    setStudents((ss) => ss.map((s) => s.id === studentId ? { ...s, marks: { ...s.marks, [subjectId]: val } } : s));
-  }
-
-  // Auto total per student
-  const studentTotals = useMemo(
-    () => Object.fromEntries(students.map((s) => [s.id, config.subjects.reduce((sum, sub) => sum + (Number(s.marks[sub.id]) || 0), 0)])),
-    [students, config.subjects],
-  );
-  const totalOutOf = config.subjects.reduce((s, sub) => s + (Number(sub.outOf) || 0), 0);
-
-  async function handleExport() {
-    setExporting(true);
-    try { await generateExcel(config, students); }
-    finally { setExporting(false); }
-  }
-
-  // ── Styles ──────────────────────────────────────────────────────────────────
-  const inputCls = "w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm text-stone-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100";
-  const labelCls = "flex flex-col gap-1.5 text-sm font-medium text-stone-700";
-  const btnPrimary = "inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 px-6 py-3 text-sm font-bold text-stone-950 shadow-md transition hover:bg-amber-300 active:scale-95 disabled:opacity-60";
-  const btnSecondary = "inline-flex items-center justify-center gap-2 rounded-2xl border border-stone-300 px-5 py-2.5 text-sm font-semibold text-stone-700 transition hover:border-stone-900 hover:text-stone-900 active:scale-95";
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 1 – CONFIG
-  // ─────────────────────────────────────────────────────────────────────────────
-  if (step === "config") {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-stone-50 to-orange-50 px-4 py-10">
-        <div className="mx-auto max-w-3xl space-y-6">
-          {/* Header */}
-          <div className="text-center">
-            <span className="inline-block rounded-full border border-amber-300 bg-amber-100 px-4 py-1 text-xs font-bold uppercase tracking-widest text-amber-800">
-              Mark Memo Generator
-            </span>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-stone-900">
+  return (
+    <div className="min-h-screen bg-background">
+      {/* ── Header ── */}
+      <header className="border-b bg-card shadow-sm print:hidden">
+        <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-4 sm:px-6">
+          <Image src="/image.png" alt="Logo" width={52} height={52} className="rounded-full" style={{ width: 52, height: 52 }} />
+          <div className="flex-1">
+            <h1 className="text-xl font-bold leading-tight text-foreground">
               Shree Saraswati Classes
             </h1>
-            <p className="mt-2 text-stone-500">Step 1 of 2 — Sheet configuration bhariye</p>
+            <p className="text-sm text-muted-foreground">Mark Memo Management System</p>
           </div>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger
+              render={
+                <Button className="gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  <span className="hidden sm:inline">New Session</span>
+                  <span className="sm:hidden">New</span>
+                </Button>
+              }
+            />
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Create Exam Session</DialogTitle>
+              </DialogHeader>
 
-          {/* Card: Institute */}
-          <div className="rounded-3xl border border-stone-200 bg-white/90 p-6 shadow-lg backdrop-blur">
-            <h2 className="mb-4 text-base font-bold text-stone-800">🏫 Institute Info</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className={labelCls}>
-                Institute Name
-                <input className={inputCls} value={config.instituteName} onChange={(e) => setConfigField("instituteName", e.target.value)} />
-              </label>
-              <label className={labelCls}>
-                Class
-                <input className={inputCls} placeholder="e.g. 11th Science" value={config.className} onChange={(e) => setConfigField("className", e.target.value)} />
-              </label>
-              <label className={labelCls}>
-                Month
-                <select className={inputCls} value={config.month} onChange={(e) => setConfigField("month", e.target.value)}>
-                  {MONTHS.map((m) => <option key={m}>{m}</option>)}
-                </select>
-              </label>
-              <label className={labelCls}>
-                Year
-                <input className={inputCls} placeholder="2026" value={config.year} onChange={(e) => setConfigField("year", e.target.value)} />
-              </label>
-              <label className={labelCls}>
-                Total Days (Presenty max)
-                <input className={inputCls} placeholder="25" value={config.totalDays} onChange={(e) => setConfigField("totalDays", e.target.value)} />
-              </label>
-              <label className={labelCls}>
-                Footer / Manager Name
-                <input className={inputCls} value={config.managerName} onChange={(e) => setConfigField("managerName", e.target.value)} />
-              </label>
-            </div>
-          </div>
+              <div className="space-y-4 py-2">
+                {/* Institute */}
+                <div className="grid gap-1.5">
+                  <Label>Institute Name</Label>
+                  <Input value={form.instituteName} onChange={(e) => setField("instituteName", e.target.value)} />
+                </div>
 
-          {/* Card: Subjects */}
-          <div className="rounded-3xl border border-stone-200 bg-white/90 p-6 shadow-lg backdrop-blur">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-bold text-stone-800">📚 Subjects & Out-of Marks</h2>
-              <button className={btnSecondary} onClick={addSubject}>+ Add Subject</button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-separate border-spacing-y-2">
-                <thead>
-                  <tr className="text-xs font-semibold uppercase tracking-wider text-stone-500">
-                    <th className="px-3 text-left">#</th>
-                    <th className="px-3 text-left">Subject Name</th>
-                    <th className="px-3 text-left">Out of Marks</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {config.subjects.map((subj, i) => (
-                    <tr key={subj.id}>
-                      <td className="px-3 text-sm text-stone-400">{i + 1}</td>
-                      <td className="px-1">
-                        <input className={inputCls} placeholder="Subject name" value={subj.name} onChange={(e) => updateSubject(subj.id, "name", e.target.value)} />
-                      </td>
-                      <td className="px-1 w-32">
-                        <input className={inputCls} placeholder="20" type="number" min="1" value={subj.outOf} onChange={(e) => updateSubject(subj.id, "outOf", e.target.value)} />
-                      </td>
-                      <td className="px-1">
-                        <button onClick={() => removeSubject(subj.id)} className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100">✕</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-3 flex items-center justify-between rounded-2xl bg-amber-50 px-4 py-2.5 text-sm">
-              <span className="text-stone-600">Total out-of marks:</span>
-              <span className="font-bold text-amber-900">{totalOutOf}</span>
-            </div>
-          </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label>Class *</Label>
+                    <Input placeholder="11th Science" value={form.className} onChange={(e) => setField("className", e.target.value)} />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Year</Label>
+                    <Input placeholder="2026" value={form.year} onChange={(e) => setField("year", e.target.value)} />
+                  </div>
+                </div>
 
-          <div className="flex justify-end">
-            <button
-              className={btnPrimary}
-              onClick={() => {
-                setStudents((ss) =>
-                  ss.map((s) => ({
-                    ...s,
-                    marks: Object.fromEntries(
-                      config.subjects.map((sub) => [sub.id, s.marks[sub.id] ?? ""])
-                    ),
-                  }))
-                );
-                setStep("students");
-              }}
-            >
-              Next: Enter Student Marks →
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label>Month</Label>
+                    <Select value={form.month} onValueChange={(v) => setField("month", v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>Total Days</Label>
+                    <Input type="number" placeholder="25" value={form.totalDays} onChange={(e) => setField("totalDays", e.target.value)} />
+                  </div>
+                </div>
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 2 – STUDENTS TABLE
-  // ─────────────────────────────────────────────────────────────────────────────
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-stone-50 to-orange-50 px-4 py-10">
-      <div className="mx-auto max-w-full space-y-6" style={{ maxWidth: "min(100%, 1400px)" }}>
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <button className="mb-1 text-sm text-stone-500 hover:text-stone-800 transition" onClick={() => setStep("config")}>← Back to Config</button>
-            <h1 className="text-2xl font-bold text-stone-900">Student Marks Entry</h1>
-            <p className="text-sm text-stone-500">
-              {config.className} &mdash; {config.month} {config.year} &mdash; {config.subjects.length} subjects, out of {totalOutOf}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <button className={btnSecondary} onClick={addStudent}>+ Add Student</button>
-            <button className={btnPrimary} onClick={handleExport} disabled={exporting}>
-              {exporting ? "Generating…" : "📥 Generate Excel"}
-            </button>
-          </div>
-        </div>
+                <div className="grid gap-1.5">
+                  <Label>Manager / Footer Name</Label>
+                  <Input value={form.managerName} onChange={(e) => setField("managerName", e.target.value)} />
+                </div>
 
-        {/* Table */}
-        <div className="rounded-3xl border border-stone-200 bg-white/90 shadow-xl backdrop-blur overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-amber-400 text-stone-950">
-                  <th className="sticky left-0 z-10 bg-amber-400 px-4 py-3 text-left font-bold whitespace-nowrap">#</th>
-                  <th className="sticky left-8 z-10 bg-amber-400 px-4 py-3 text-left font-bold whitespace-nowrap min-w-[180px]">Student Name</th>
-                  {config.subjects.map((sub) => (
-                    <th key={sub.id} className="px-4 py-3 text-center font-bold whitespace-nowrap">
-                      <div>{sub.name || "Subject"}</div>
-                      <div className="text-xs font-normal opacity-75">/ {sub.outOf}</div>
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-center font-bold whitespace-nowrap">Presenty<div className="text-xs font-normal opacity-75">/ {config.totalDays}</div></th>
-                  <th className="px-4 py-3 text-center font-bold whitespace-nowrap">Total<div className="text-xs font-normal opacity-75">/ {totalOutOf}</div></th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((student, i) => {
-                  const total = studentTotals[student.id] ?? 0;
-                  return (
-                    <tr key={student.id} className={i % 2 === 0 ? "bg-white" : "bg-stone-50/60"}>
-                      <td className="px-4 py-2.5 text-stone-400 font-medium">{i + 1}</td>
-                      <td className="px-2 py-2">
-                        <input
-                          className="w-full min-w-[160px] rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                          placeholder="Student name"
-                          value={student.name}
-                          onChange={(e) => setStudentField(student.id, "name", e.target.value)}
+                <Separator />
+
+                {/* Subjects */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <Label className="text-sm font-semibold">Subjects &amp; Out-of Marks</Label>
+                    <Button variant="outline" size="sm" onClick={addSubject}>+ Add</Button>
+                  </div>
+                  <div className="space-y-2">
+                    {form.subjects.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Input
+                          placeholder="Subject name"
+                          value={s.name}
+                          onChange={(e) => setSubject(i, "name", e.target.value)}
+                          className="flex-1"
                         />
-                      </td>
-                      {config.subjects.map((sub) => (
-                        <td key={sub.id} className="px-2 py-2">
-                          <input
-                            type="number"
-                            min="0"
-                            max={sub.outOf}
-                            className="w-full min-w-[70px] rounded-xl border border-stone-200 bg-white px-3 py-2 text-center text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                            placeholder="0"
-                            value={student.marks[sub.id] ?? ""}
-                            onChange={(e) => setMark(student.id, sub.id, e.target.value)}
-                          />
-                        </td>
-                      ))}
-                      <td className="px-2 py-2">
-                        <input
+                        <Input
                           type="number"
-                          min="0"
-                          className="w-full min-w-[70px] rounded-xl border border-stone-200 bg-white px-3 py-2 text-center text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                          placeholder="0"
-                          value={student.attendance}
-                          onChange={(e) => setStudentField(student.id, "attendance", e.target.value)}
+                          placeholder="20"
+                          value={s.outOf}
+                          onChange={(e) => setSubject(i, "outOf", e.target.value)}
+                          className="w-20 text-center"
                         />
-                      </td>
-                      <td className="px-4 py-2 text-center">
-                        <span className={`inline-block rounded-full px-3 py-1 text-sm font-bold ${total >= totalOutOf * 0.6 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                          {total}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2">
-                        <button
-                          onClick={() => removeStudent(student.id)}
-                          className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100"
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <Button variant="ghost" size="icon" onClick={() => removeSubject(i)} className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-right text-xs text-muted-foreground">
+                    Total out of: {form.subjects.reduce((s, sub) => s + sub.outOf, 0)}
+                  </p>
+                </div>
 
-          {/* Footer summary */}
-          <div className="border-t border-stone-100 bg-amber-50 px-6 py-3 flex items-center justify-between">
-            <span className="text-sm text-stone-600">{students.length} student{students.length !== 1 ? "s" : ""} • {config.subjects.length} subjects</span>
-            <button className={btnPrimary} onClick={handleExport} disabled={exporting}>
-              {exporting ? "⏳ Generating…" : "📥 Generate Excel Sheet"}
-            </button>
-          </div>
+                <Button className="w-full" onClick={createSession} disabled={saving}>
+                  {saving ? "Creating…" : "Create Session & Add Students"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
-      </div>
+      </header>
+
+      {/* ── Sessions list ── */}
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((k) => (
+              <div key={k} className="h-40 animate-pulse rounded-2xl bg-muted" />
+            ))}
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+            <BookOpen className="h-14 w-14 text-muted-foreground/40" />
+            <div>
+              <p className="text-lg font-semibold text-foreground">No sessions yet</p>
+              <p className="text-sm text-muted-foreground">Create your first exam session to get started.</p>
+            </div>
+            <Button onClick={() => setOpen(true)} className="gap-2">
+              <PlusCircle className="h-4 w-4" /> Create Session
+            </Button>
+          </div>
+        ) : (
+          <>
+            <p className="mb-4 text-sm text-muted-foreground">{sessions.length} session{sessions.length !== 1 ? "s" : ""} found</p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {sessions.map((s) => (
+                <Card
+                  key={s._id}
+                  className="group cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5"
+                  onClick={() => router.push(`/session/${s._id}`)}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="truncate text-base">{s.className}</CardTitle>
+                        <CardDescription className="mt-0.5 flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {s.month} {s.year}
+                        </CardDescription>
+                      </div>
+                      <Badge variant="secondary" className="shrink-0">{s.subjects.length} sub</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="mb-3 truncate text-xs text-muted-foreground">{s.instituteName}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Users className="h-3 w-3" />
+                        {s.totalDays} days total
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive opacity-0 transition-opacity group-hover:opacity-100"
+                          onClick={(e) => deleteSession(e, s._id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
+      </main>
     </div>
   );
 }

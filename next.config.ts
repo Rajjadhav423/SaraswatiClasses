@@ -1,10 +1,8 @@
 import type { NextConfig } from "next";
-import path from "node:path";
 
 const nextConfig: NextConfig = {
-  turbopack: {
-    root: path.resolve(__dirname),
-  },
+  // ExcelJS and mongoose use Node.js APIs — keep server-side only
+  serverExternalPackages: ["mongoose"],
 };
 
 export default nextConfig;
