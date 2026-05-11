@@ -13,29 +13,162 @@ export interface SessionData {
 export interface StudentData {
   name: string;
   attendance: number;
-  marks: (number | string)[];  // number or "AB" for absent
+  marks: (number | string)[];
 }
+
+const COL_OFFSET = 2; // A, B = empty margins; table starts at C
+const TOP_GAP    = 3; // empty rows at top
+const BLOCK_GAP  = 3; // empty rows between every block
 
 const WHITE = "FFFFFFFF";
 const BLACK = "FF000000";
+const FONT  = "Calibri"; // ← match WPS/Excel default
 
 function border() {
   const s = { style: "thin" as const, color: { argb: BLACK } };
   return { top: s, bottom: s, left: s, right: s };
 }
 
-function cell(
+function applyCell(
   c: ExcelJS.Cell,
   value: string | number,
   bold = true,
   size = 11,
-  align: ExcelJS.Alignment["horizontal"] = "center"
+  align: ExcelJS.Alignment["horizontal"] = "center",
 ) {
-  c.value = value;
-  c.font = { name: "Arial", bold, size, color: { argb: BLACK } };
-  c.alignment = { horizontal: align, vertical: "middle" };
-  c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
-  c.border = border();
+  c.value      = value;
+  c.font       = { name: FONT, bold, size, color: { argb: BLACK } };
+  c.alignment  = { horizontal: align, vertical: "middle", wrapText: false };
+  c.fill       = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
+  c.border     = border();
+}
+
+function renderBlock(
+  ws: ExcelJS.Worksheet,
+  logoId: number | null,
+  session: SessionData,
+  student: StudentData,
+  base: number,    // 1-indexed starting row
+  colBase: number, // 1-indexed logo column (C = 3)
+) {
+  const N  = session.subjects.length;
+  const cL = colBase;      // C  – logo
+  const cB = colBase + 1;  // D  – label / Test
+  const cC = colBase + 2;  // E  – Obtain
+  const cD = colBase + 3;  // F  – Total
+  const cE = colBase + 4;  // G  – Presenty
+
+  // ── Logo cell (merged 3 rows) ──────────────────────────────────────────────
+  ws.mergeCells(base, cL, base + 2, cL);
+  const lc = ws.getCell(base, cL);
+  lc.fill   = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
+  lc.border = border();
+
+  if (logoId !== null) {
+    ws.addImage(logoId, {
+      tl: { col: cL - 1, row: base - 1 },       // 0-indexed
+      br: { col: cL,     row: base + 2 },
+      editAs: "oneCell",
+    });
+  }
+
+  // ── Row 1: Institute name ──────────────────────────────────────────────────
+  ws.mergeCells(base, cB, base, cE);
+  ws.getRow(base).height = 28;
+  {
+    const c = ws.getCell(base, cB);
+    c.value     = session.instituteName.toUpperCase();
+    c.font      = { name: "Algerian", bold: true, size: 14, color: { argb: BLACK } };
+    c.alignment = { horizontal: "center", vertical: "middle" };
+    c.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
+    c.border    = border();
+  }
+
+  // ── Row 2: Name & class ────────────────────────────────────────────────────
+  ws.mergeCells(base + 1, cB, base + 1, cE);
+  ws.getRow(base + 1).height = 22;
+  {
+    const c = ws.getCell(base + 1, cB);
+    c.value     = `Name-  ${student.name || "Student"}     ${session.className}`;
+    c.font      = { name: "Arial Black", bold: false, size: 11, color: { argb: BLACK } };
+    c.alignment = { horizontal: "center", vertical: "middle" };
+    c.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
+    c.border    = border();
+  }
+
+  // ── Row 3: Mark-Memo heading ───────────────────────────────────────────────
+  ws.mergeCells(base + 2, cB, base + 2, cE);
+  ws.getRow(base + 2).height = 22;
+  {
+    const c = ws.getCell(base + 2, cB);
+    c.value     = `MARK-MEMO ${session.month.toUpperCase()} ${session.year}`;
+    c.font      = { name: "Algerian", bold: true, size: 11, color: { argb: BLACK } };
+    c.alignment = { horizontal: "center", vertical: "middle" };
+    c.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
+    c.border    = border();
+  }
+
+  // ── Row 4: Column headers ──────────────────────────────────────────────────
+  const hRow = base + 3;
+  ws.getRow(hRow).height = 20;
+  applyCell(ws.getCell(hRow, cL), "");
+  (["Test", "Obtain", "Total", "Presenty"] as const).forEach((h, i) =>
+    applyCell(ws.getCell(hRow, cB + i), h, true, 11),
+  );
+
+  // ── Subject rows ───────────────────────────────────────────────────────────
+  const sStart = base + 4;
+  if (N > 1) ws.mergeCells(sStart, cE, sStart + N - 1, cE);
+  applyCell(ws.getCell(sStart, cE), student.attendance ?? "", true, 14);
+
+  let totalObtained = 0;
+  session.subjects.forEach((subj, si) => {
+    const r    = sStart + si;
+    ws.getRow(r).height = 20;
+    const raw  = student.marks[si];
+    const isAB = String(raw).trim().toUpperCase() === "AB";
+    const obt  = isAB ? 0 : (Number(raw) || 0);
+    totalObtained += obt;
+
+    applyCell(ws.getCell(r, cL), "");
+    applyCell(ws.getCell(r, cB), subj.name || `Subject ${si + 1}`, true, 11);
+    applyCell(ws.getCell(r, cD), subj.outOf, true, 11);
+
+    if (isAB) {
+      const c    = ws.getCell(r, cC);
+      c.value    = "AB";
+      c.font     = { name: FONT, bold: true, size: 11, color: { argb: BLACK } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      c.fill     = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
+      c.border   = border();
+    } else {
+      applyCell(ws.getCell(r, cC), obt, true, 11);
+    }
+  });
+
+  // ── Total row ──────────────────────────────────────────────────────────────
+  const tRow     = sStart + N;
+  ws.getRow(tRow).height = 20;
+  const totalOutOf = session.subjects.reduce((s, sub) => s + sub.outOf, 0);
+  applyCell(ws.getCell(tRow, cL), "");
+  applyCell(ws.getCell(tRow, cB), "Total",       true, 11);
+  applyCell(ws.getCell(tRow, cC), totalObtained, true, 11);
+  applyCell(ws.getCell(tRow, cD), totalOutOf,    true, 11);
+  applyCell(ws.getCell(tRow, cE), `Total Day ${session.totalDays}`, true, 11);
+
+  // ── Manager row ────────────────────────────────────────────────────────────
+  const mgRow = tRow + 1;
+  ws.getRow(mgRow).height = 18;
+  ws.mergeCells(mgRow, cL, mgRow, cD);
+  applyCell(ws.getCell(mgRow, cL), "");
+  applyCell(ws.getCell(mgRow, cE), session.managerName, true, 11);
+
+  // ── Signature row ──────────────────────────────────────────────────────────
+  const sigRow = tRow + 2;
+  ws.getRow(sigRow).height = 20;
+  ws.mergeCells(sigRow, cL, sigRow, cD);
+  applyCell(ws.getCell(sigRow, cL), "Parents signature", true, 11);
+  applyCell(ws.getCell(sigRow, cE), session.instituteName, true, 11);
 }
 
 export async function buildExcel(session: SessionData, students: StudentData[]) {
@@ -48,121 +181,48 @@ export async function buildExcel(session: SessionData, students: StudentData[]) 
   } catch { /* skip */ }
 
   const ws = wb.addWorksheet("Mark Memo");
+
+  // ── Column widths (units = Excel character widths ≈ 7 px each) ────────────
   ws.columns = [
-    { width: 13 }, // A  logo
-    { width: 22 }, // B  subject / label
-    { width: 10 }, // C  obtain
-    { width: 10 }, // D  total
-    { width: 20 }, // E  presenty
+    { width: 3  }, // A – left margin
+    { width: 3  }, // B – left margin
+    { width: 11 }, // C – logo
+    { width: 22 }, // D – label / subject name
+    { width: 10 }, // E – obtain
+    { width: 10 }, // F – total (out-of)
+    { width: 30 }, // G – presenty (wide: fits full institute name in signature)
+    { width: 3  }, // H – right margin
   ];
 
-  const N = session.subjects.length;
-  // block: 3 header + 1 col-header + N subject + 1 total + 1 manager + 1 sign + 1 spacer
-  const BLOCK = 3 + 1 + N + 1 + 1 + 1 + 1;
+  const N       = session.subjects.length;
+  const BLOCK_H = 3 + 1 + N + 1 + 1 + 1; // header rows + col-header + subjects + total + mgr + sig
+  const UNIT    = BLOCK_H + BLOCK_GAP;    // one block + its trailing gap
+
+  // Top gap
+  for (let i = 1; i <= TOP_GAP; i++) ws.getRow(i).height = 8;
+
+  const colBase = COL_OFFSET + 1; // = 3 (column C)
 
   students.forEach((student, idx) => {
-    const base = 1 + idx * BLOCK;
+    for (let copy = 0; copy < 2; copy++) {
+      const blockIdx = idx * 2 + copy;
+      const base     = TOP_GAP + 1 + blockIdx * UNIT;
 
-    // ── Logo cell (A, rows base..base+2 merged) ───────────────────────────────
-    ws.mergeCells(base, 1, base + 2, 1);
-    const lc = ws.getCell(base, 1);
-    lc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
-    lc.border = border();
+      renderBlock(ws, logoId, session, student, base, colBase);
 
-    // ── Row 1: Institute name ────────────────────────────────────────────────
-    ws.mergeCells(base, 2, base, 5);
-    ws.getRow(base).height = 32;
-    cell(ws.getCell(base, 2), session.instituteName.toUpperCase(), true, 14);
-
-    // ── Row 2: Name & class ──────────────────────────────────────────────────
-    ws.mergeCells(base + 1, 2, base + 1, 5);
-    ws.getRow(base + 1).height = 26;
-    cell(ws.getCell(base + 1, 2), `Name-  ${student.name || "Student"}     ${session.className}`, true, 12);
-
-    // ── Row 3: Mark-Memo heading ─────────────────────────────────────────────
-    ws.mergeCells(base + 2, 2, base + 2, 5);
-    ws.getRow(base + 2).height = 26;
-    cell(ws.getCell(base + 2, 2), `MARK-MEMO ${session.month.toUpperCase()} ${session.year}`, true, 12);
-
-    if (logoId !== null) {
-      ws.addImage(logoId, {
-        tl: { col: 0, row: base - 1 },
-        br: { col: 1, row: base + 2 },
-        editAs: "oneCell",
-      });
+      // Gap rows after this block
+      const gapStart = base + BLOCK_H;
+      for (let g = 0; g < BLOCK_GAP; g++) ws.getRow(gapStart + g).height = 8;
     }
-
-    // ── Row 4: Column headers ────────────────────────────────────────────────
-    const hRow = base + 3;
-    ws.getRow(hRow).height = 22;
-    cell(ws.getCell(hRow, 1), "");
-    ["Test", "Obtain", "Total", "Presenty"].forEach((h, i) =>
-      cell(ws.getCell(hRow, i + 2), h, true, 11)
-    );
-
-    // ── Subject rows ─────────────────────────────────────────────────────────
-    const sStart = base + 4;
-    if (N > 1) ws.mergeCells(sStart, 5, sStart + N - 1, 5);
-    cell(ws.getCell(sStart, 5), student.attendance ?? "", true, 13);
-
-    let totalObtained = 0;
-    session.subjects.forEach((subj, si) => {
-      const r = sStart + si;
-      ws.getRow(r).height = 22;
-      const rawMark = student.marks[si];
-      const isAbsent = String(rawMark).trim().toUpperCase() === "AB";
-      const obt = isAbsent ? 0 : (Number(rawMark) || 0);
-      totalObtained += obt;
-      cell(ws.getCell(r, 1), "");
-      cell(ws.getCell(r, 2), subj.name || `Subject ${si + 1}`, true, 11);
-      // AB shown as text string; numbers shown as numbers
-      if (isAbsent) {
-        const c = ws.getCell(r, 3);
-        c.value = "AB";
-        c.font = { name: "Arial", bold: true, size: 11, color: { argb: BLACK } };
-        c.alignment = { horizontal: "center", vertical: "middle" };
-        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
-        c.border = border();
-      } else {
-        cell(ws.getCell(r, 3), obt, true, 11);
-      }
-      cell(ws.getCell(r, 4), subj.outOf, true, 11);
-    });
-
-    // ── Total row ────────────────────────────────────────────────────────────
-    const tRow = sStart + N;
-    ws.getRow(tRow).height = 22;
-    const totalOutOf = session.subjects.reduce((s, sub) => s + sub.outOf, 0);
-    cell(ws.getCell(tRow, 1), "");
-    cell(ws.getCell(tRow, 2), "Total", true, 11);
-    cell(ws.getCell(tRow, 3), totalObtained, true, 11);
-    cell(ws.getCell(tRow, 4), totalOutOf, true, 11);
-    cell(ws.getCell(tRow, 5), `Total Day ${session.totalDays}`, true, 11);
-
-    // ── Manager row ──────────────────────────────────────────────────────────
-    const mgRow = tRow + 1;
-    ws.getRow(mgRow).height = 20;
-    ws.mergeCells(mgRow, 1, mgRow, 4);
-    cell(ws.getCell(mgRow, 1), "");
-    cell(ws.getCell(mgRow, 5), session.managerName, true, 11);
-
-    // ── Signature row ────────────────────────────────────────────────────────
-    const sigRow = tRow + 2;
-    ws.getRow(sigRow).height = 22;
-    ws.mergeCells(sigRow, 1, sigRow, 4);
-    cell(ws.getCell(sigRow, 1), "Parents signature", true, 11);
-    cell(ws.getCell(sigRow, 5), session.instituteName, true, 11);
-
-    ws.getRow(sigRow + 1).height = 10;
   });
 
-  const buf = await wb.xlsx.writeBuffer();
+  const buf  = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
   a.download = `mark-memo-${session.className.replace(/\s+/g, "-")}-${session.month}-${session.year}.xlsx`;
   document.body.appendChild(a);
   a.click();

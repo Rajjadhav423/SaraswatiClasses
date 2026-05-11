@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Download, PlusCircle, Save, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, PlusCircle, Save, Trash2, Loader2, Eye } from "lucide-react";
 import { buildExcel } from "@/lib/excel";
 
 interface Subject { name: string; outOf: number }
@@ -214,6 +214,15 @@ export default function SessionPage() {
           </div>
           <Button variant="outline" size="sm" onClick={addRow} className="hidden gap-1.5 sm:flex">
             <PlusCircle className="h-4 w-4" /> Add Student
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden gap-1.5 sm:flex"
+            onClick={() => window.open(`/preview/${id}`, "_blank")}
+          >
+            <Eye className="h-4 w-4" />
+            <span className="hidden sm:inline">Preview</span>
           </Button>
           <Button size="sm" onClick={handleExport} disabled={exporting} className="gap-1.5">
             {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
