@@ -140,19 +140,24 @@ function MemoBlock({ session, student }: { session: Session; student: Student })
           </tr>
         ))}
 
-        {/* Total row */}
+        {/* Total row — no bottom border */}
         <tr style={{ height: 22 }}>
-          {td("")}
-          {td("Total",       { fontWeight: "bold" })}
-          {td(totalObtained, { fontWeight: "bold" })}
-          {td(totalOutOf,    { fontWeight: "bold" })}
-          {td(`Total Day ${session.totalDays}`, { fontWeight: "bold" })}
+          <td style={{ ...CELL, borderBottom: "none" }}>{""}</td>
+          <td style={{ ...CELL, borderBottom: "none", fontWeight: "bold" }}>Total</td>
+          <td style={{ ...CELL, borderBottom: "none", fontWeight: "bold" }}>{totalObtained}</td>
+          <td style={{ ...CELL, borderBottom: "none", fontWeight: "bold" }}>{totalOutOf}</td>
+          <td style={{ ...CELL, borderBottom: "none", fontWeight: "bold" }}>{`Total Day ${session.totalDays}`}</td>
         </tr>
 
-        {/* Manager row */}
+        {/* Sign-space row — completely open, no borders */}
+        <tr style={{ height: 30 }}>
+          <td colSpan={5} style={{ borderLeft: "1px solid #000", borderRight: "1px solid #000", backgroundColor: "#fff" }} />
+        </tr>
+
+        {/* Manager row — no top border */}
         <tr style={{ height: 20 }}>
-          <td colSpan={4} style={{ ...CELL }} />
-          {td(session.managerName, { fontWeight: "bold" })}
+          <td colSpan={4} style={{ ...CELL, borderTop: "none" }} />
+          <td style={{ ...CELL, borderTop: "none", fontWeight: "bold" }}>{session.managerName}</td>
         </tr>
 
         {/* Signature row */}

@@ -24,10 +24,10 @@ const WHITE = "FFFFFFFF";
 const BLACK = "FF000000";
 const FONT  = "Calibri"; // ← match WPS/Excel default
 
-function border() {
-  const s = { style: "thin" as const, color: { argb: BLACK } };
-  return { top: s, bottom: s, left: s, right: s };
-}
+const S = { style: "thin" as const, color: { argb: BLACK } };
+function border()        { return { top: S, bottom: S, left: S, right: S }; }
+function borderNoBottom(){ return { top: S,             left: S, right: S }; }
+function borderNoTop()   { return {           bottom: S, left: S, right: S }; }
 
 function applyCell(
   c: ExcelJS.Cell,
@@ -35,12 +35,13 @@ function applyCell(
   bold = true,
   size = 11,
   align: ExcelJS.Alignment["horizontal"] = "center",
+  customBorder?: ExcelJS.Borders,
 ) {
-  c.value      = value;
-  c.font       = { name: FONT, bold, size, color: { argb: BLACK } };
-  c.alignment  = { horizontal: align, vertical: "middle", wrapText: false };
-  c.fill       = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
-  c.border     = border();
+  c.value     = value;
+  c.font      = { name: FONT, bold, size, color: { argb: BLACK } };
+  c.alignment = { horizontal: align, vertical: "middle", wrapText: false };
+  c.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
+  c.border    = customBorder ?? border();
 }
 
 function renderBlock(
@@ -148,8 +149,8 @@ function renderBlock(
     }
   });
 
-  // ── Total row ──────────────────────────────────────────────────────────────
-  const tRow     = sStart + N;
+  // ── Total row (keep all borders — bottom line closes the data section) ────────
+  const tRow = sStart + N;
   ws.getRow(tRow).height = 20;
   const totalOutOf = session.subjects.reduce((s, sub) => s + sub.outOf, 0);
   applyCell(ws.getCell(tRow, cL), "");
@@ -158,19 +159,34 @@ function renderBlock(
   applyCell(ws.getCell(tRow, cD), totalOutOf,    true, 11);
   applyCell(ws.getCell(tRow, cE), `Total Day ${session.totalDays}`, true, 11);
 
-  // ── Manager row ────────────────────────────────────────────────────────────
-  const mgRow = tRow + 1;
-  ws.getRow(mgRow).height = 18;
-  ws.mergeCells(mgRow, cL, mgRow, cD);
-  applyCell(ws.getCell(mgRow, cL), "");
-  applyCell(ws.getCell(mgRow, cE), session.managerName, true, 11);
+  // ── Sign-space row: left half (C–F) | right half (G), vertical divider only ───
+  // No top/bottom borders — creates an open blank signing area
+  const signRow = tRow + 1;
+  ws.getRow(signRow).height = 30;
+  ws.mergeCells(signRow, cL, signRow, cD);   // C–F merged = parents signing area
+  const slc = ws.getCell(signRow, cL);
+  slc.value  = "";
+  slc.fill   = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
+  slc.border = { left: S, right: S };        // only left + right outer edges
 
-  // ── Signature row ──────────────────────────────────────────────────────────
+  const src = ws.getCell(signRow, cE);       // G = manager signing area
+  src.value  = "";
+  src.fill   = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
+  src.border = { left: S, right: S };        // only left + right outer edges
+
+  // ── Signature / label row ──────────────────────────────────────────────────
   const sigRow = tRow + 2;
-  ws.getRow(sigRow).height = 20;
+  ws.getRow(sigRow).height = 22;
   ws.mergeCells(sigRow, cL, sigRow, cD);
   applyCell(ws.getCell(sigRow, cL), "Parents signature", true, 11);
-  applyCell(ws.getCell(sigRow, cE), session.instituteName, true, 11);
+  // Right cell: "Manager" on first line, institution below
+  const sigR = ws.getCell(sigRow, cE);
+  sigR.value     = `${session.managerName}\n${session.instituteName}`;
+  sigR.font      = { name: FONT, bold: true, size: 10, color: { argb: BLACK } };
+  sigR.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+  sigR.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
+  sigR.border    = border();
+  ws.getRow(sigRow).height = 30; // taller to fit two lines
 }
 
 export async function buildExcel(session: SessionData, students: StudentData[]) {
@@ -188,20 +204,20 @@ export async function buildExcel(session: SessionData, students: StudentData[]) 
   ws.columns = [
     { width: 3  }, // A – left margin
     { width: 3  }, // B – left margin
-    { width: 11 }, // C – logo
+    { width: 13 }, // C – logo (wider to contain image)
     { width: 22 }, // D – label / subject name
     { width: 10 }, // E – obtain
     { width: 10 }, // F – total (out-of)
-    { width: 30 }, // G – presenty (wide: fits full institute name in signature)
+    { width: 30 }, // G – presenty / signature
     { width: 3  }, // H – right margin
   ];
 
   const N       = session.subjects.length;
-  const BLOCK_H = 3 + 1 + N + 1 + 1 + 1; // header rows + col-header + subjects + total + mgr + sig
-  const UNIT    = BLOCK_H + BLOCK_GAP;    // one block + its trailing gap
+  const BLOCK_H = 3 + 1 + N + 1 + 1 + 1; // 3 header + col-hdr + N subjects + total + sign-space + sig-label
+  const UNIT    = BLOCK_H + BLOCK_GAP;         // one block + trailing gap rows
 
-  // Top gap
-  for (let i = 1; i <= TOP_GAP; i++) ws.getRow(i).height = 8;
+  // Top gap rows — same height as subject rows so the margin is visible
+  for (let i = 1; i <= TOP_GAP; i++) ws.getRow(i).height = 20;
 
   const colBase = COL_OFFSET + 1; // = 3 (column C)
 
@@ -212,9 +228,9 @@ export async function buildExcel(session: SessionData, students: StudentData[]) 
 
       renderBlock(ws, logoId, session, student, base, colBase);
 
-      // Gap rows after this block
+      // Gap rows after this block — same height as subject rows
       const gapStart = base + BLOCK_H;
-      for (let g = 0; g < BLOCK_GAP; g++) ws.getRow(gapStart + g).height = 8;
+      for (let g = 0; g < BLOCK_GAP; g++) ws.getRow(gapStart + g).height = 20;
     }
   });
 
