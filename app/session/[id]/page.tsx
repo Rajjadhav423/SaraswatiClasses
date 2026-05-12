@@ -118,6 +118,7 @@ export default function SessionPage() {
     setLoading(false);
   }, [id, router]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   // ── Save session metadata (month / year / totalDays) ───────────────────────
@@ -231,6 +232,21 @@ export default function SessionPage() {
   // ── Computed ──────────────────────────────────────────────────────────────
   const totalOutOf = session?.subjects.reduce((s, sub) => s + sub.outOf, 0) ?? 0;
   function rowTotal(r: Row) { return r.marks.reduce((s, m) => s + markNum(m), 0); }
+
+  const rankedRows = rows
+    .map((row, originalIdx) => ({
+      row,
+      originalIdx,
+      total: rowTotal(row),
+      percentage: totalOutOf > 0 ? (rowTotal(row) / totalOutOf) * 100 : 0,
+    }))
+    .filter(({ row }) => row.name.trim())
+    .sort((a, b) => {
+      if (b.total !== a.total) return b.total - a.total;
+      return a.row.name.localeCompare(b.row.name);
+    });
+
+  const toppers = rankedRows.slice(0, 3);
 
   // ── Filter by search ──────────────────────────────────────────────────────
   const q = search.toLowerCase().trim();
@@ -392,6 +408,41 @@ export default function SessionPage() {
           </p>
         )}
 
+        {toppers.length > 0 && (
+          <div className="mb-3 rounded-xl border bg-card/70 p-3 shadow-sm print:hidden">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Top 3 Toppers</p>
+                <p className="text-xs text-muted-foreground">Automatically ranked from total marks</p>
+              </div>
+              <Badge variant="secondary" className="h-6 px-2 text-[10px]">
+                {toppers.length} detected
+              </Badge>
+            </div>
+            <div className="grid gap-2 md:grid-cols-3">
+              {toppers.map(({ row, total, percentage }, index) => (
+                <div
+                  key={`${row._id ?? row.name}-${index}`}
+                  className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                        {index + 1}
+                      </span>
+                      <p className="truncate text-sm font-semibold">{row.name}</p>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">{percentage.toFixed(1)}% of {totalOutOf}</p>
+                  </div>
+                  <Badge variant="outline" className="shrink-0 px-2 py-0.5 text-[10px] font-mono">
+                    {total}/{totalOutOf}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {rows.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-20 text-center">
             <p className="text-muted-foreground">No students yet. Add your first student above.</p>
@@ -410,7 +461,7 @@ export default function SessionPage() {
                 <thead>
                   <tr className="border-b bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="px-4 py-3 text-left font-semibold w-8">#</th>
-                    <th className="px-4 py-3 text-left font-semibold min-w-[160px]">Student Name</th>
+                    <th className="px-4 py-3 text-left font-semibold min-w-40">Student Name</th>
                     {session.subjects.map((sub, i) => (
                       <th key={i} className="px-3 py-3 text-center font-semibold">
                         {sub.name}<br /><span className="font-normal normal-case">/{sub.outOf}</span>
@@ -443,7 +494,7 @@ export default function SessionPage() {
                             <Input value={row.name}
                               onChange={e => patchRow(i, { name: e.target.value })}
                               placeholder="Student name"
-                              className="h-8 min-w-[140px] text-sm"
+                              className="h-8 min-w-35 text-sm"
                             />
                           ) : (
                             <span className="font-medium text-sm">{row.name || <span className="text-muted-foreground">—</span>}</span>
@@ -485,7 +536,7 @@ export default function SessionPage() {
 
                         {/* Total badge */}
                         <td className="px-3 py-2 text-center">
-                          <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold min-w-[52px] ${
+                          <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold min-w-13 ${
                             pct >= 60 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
                           }`}>
                             {total}/{totalOutOf}
@@ -575,6 +626,39 @@ export default function SessionPage() {
                           </div>
                         ))}
                         <div className="grid gap-1">
+
+                      {toppers.length > 0 && (
+                        <div className="mb-4 rounded-2xl border bg-card/70 p-4 shadow-sm print:hidden">
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Top 3 Toppers</p>
+                              <p className="text-sm text-muted-foreground">Automatically ranked from total marks</p>
+                            </div>
+                            <Badge variant="secondary">{toppers.length} detected</Badge>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-3">
+                            {toppers.map(({ row, total, percentage }, index) => (
+                              <div
+                                key={`${row._id ?? row.name}-${index}`}
+                                className="flex items-center justify-between rounded-xl border bg-muted/30 px-4 py-3"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                                      {index + 1}
+                                    </span>
+                                    <p className="truncate font-semibold">{row.name}</p>
+                                  </div>
+                                  <p className="mt-1 text-xs text-muted-foreground">{percentage.toFixed(1)}% of {totalOutOf}</p>
+                                </div>
+                                <Badge variant="outline" className="shrink-0 font-mono">
+                                  {total}/{totalOutOf}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                           <span className="text-xs text-muted-foreground">Presenty/{session.totalDays}</span>
                           {row.editing ? (
                             <Input type="number" min={0}
