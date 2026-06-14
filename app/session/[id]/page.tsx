@@ -3,51 +3,44 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   ArrowLeft, Download, PlusCircle, Save, Trash2,
   Loader2, Eye, Pencil, Search, X, Settings,
+  Trophy, Users, BarChart3, CheckCircle, XCircle,
 } from "lucide-react";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { buildExcel } from "@/lib/excel";
 
+/* ── DS Components ── */
+import { DSButton }    from "@/ui/components/Button";
+import { DSLozenge }   from "@/ui/components/Lozenge";
+import { DSStatCard }  from "@/ui/components/StatCard";
+import { DSEmptyState } from "@/ui/components/EmptyState";
+import { ThemeToggle } from "@/ui/components/ThemeToggle";
+import { NavAvatar }   from "@/ui/components/NavAvatar";
+import { TopNavigation }  from "@/ui/layout/TopNavigation";
+import { PageContainer }  from "@/ui/layout/PageContainer";
+
+/* ── Types ── */
 interface Subject { name: string; outOf: number }
 interface Session {
-  _id: string;
-  instituteName: string;
-  className: string;
-  month: string;
-  year: string;
-  totalDays: number;
-  managerName: string;
-  subjects: Subject[];
+  _id: string; instituteName: string; className: string;
+  month: string; year: string; totalDays: number;
+  managerName: string; subjects: Subject[];
 }
 interface Student {
-  _id: string;
-  name: string;
-  attendance: number;
+  _id: string; name: string; attendance: number;
   marks: (number | string)[];
 }
-
-// ── Row type ──────────────────────────────────────────────────────────────────
 type Row = {
-  _id: string | null;
-  name: string;
-  attendance: string;
-  marks: string[];
-  saving: boolean;
-  dirty: boolean;
-  editing: boolean; // true = show inputs; false = show plain text
+  _id: string | null; name: string; attendance: string;
+  marks: string[]; saving: boolean; dirty: boolean; editing: boolean;
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+/* ── Helpers ── */
 function normalizeMark(v: string) {
   return v.trim().toUpperCase() === "AB" ? "AB" : v;
 }
@@ -56,61 +49,58 @@ function markNum(v: string) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }
-function blankRow(subjectCount: number): Row {
-  return {
-    _id: null, name: "", attendance: "",
-    marks: Array(subjectCount).fill(""),
-    saving: false, dirty: false, editing: true, // new rows always in edit mode
-  };
+function blankRow(n: number): Row {
+  return { _id: null, name: "", attendance: "", marks: Array(n).fill(""), saving: false, dirty: false, editing: true };
 }
 function studentToRow(s: Student): Row {
   return {
-    _id: s._id,
-    name: s.name,
-    attendance: String(s.attendance ?? ""),
+    _id: s._id, name: s.name, attendance: String(s.attendance ?? ""),
     marks: (s.marks as Array<number | string>).map(String),
-    saving: false, dirty: false, editing: false, // loaded rows start in view mode
+    saving: false, dirty: false, editing: false,
   };
 }
 
-// ── Cell display (view mode) ───────────────────────────────────────────────────
-function ViewCell({ value, className = "" }: { value: string; className?: string }) {
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MEDAL  = ["🥇", "🥈", "🥉"];
+
+/* ── View cell (read-only display) ── */
+function ViewCell({ value }: { value: string }) {
   const isAB = value.trim().toUpperCase() === "AB";
+  if (!value) return <span style={{ color: "var(--ds-text-subtlest)", fontSize: 13 }}>—</span>;
   return (
-    <span className={`text-sm font-mono ${isAB ? "font-bold text-orange-500" : ""} ${className}`}>
-      {value === "" ? <span className="text-muted-foreground/40">—</span> : value}
+    <span style={{
+      fontFamily: "var(--font-mono)",
+      fontSize: 13,
+      fontVariantNumeric: "tabular-nums",
+      fontWeight: isAB ? 700 : 400,
+      color: isAB ? "#B45309" : "var(--ds-text)",
+    }}>
+      {value}
     </span>
   );
 }
 
+/* ════════════════════════════════════════════════════════════ */
 export default function SessionPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [session, setSession] = useState<Session | null>(null);
-  const [rows, setRows]           = useState<Row[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [exporting, setExporting] = useState(false);
-  const [search, setSearch]       = useState("");
-
-  // ── Session meta edit state ─────────────────────────────────────────────────
+  const [session, setSession]       = useState<Session | null>(null);
+  const [rows, setRows]             = useState<Row[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [exporting, setExporting]   = useState(false);
+  const [search, setSearch]         = useState("");
   const [editingMeta, setEditingMeta] = useState(false);
-  const [metaForm, setMetaForm] = useState({ month: "", year: "", totalDays: "" });
-  const [savingMeta, setSavingMeta]   = useState(false);
+  const [metaForm, setMetaForm]     = useState({ month: "", year: "", totalDays: "" });
+  const [savingMeta, setSavingMeta] = useState(false);
 
-  const MONTHS = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December",
-  ];
-
-  // ── Load ──────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     const [sr, studR] = await Promise.all([
       fetch(`/api/sessions/${id}`),
       fetch(`/api/sessions/${id}/students`),
     ]);
     if (!sr.ok) { router.push("/"); return; }
-    const sess: Session   = await sr.json();
+    const sess: Session      = await sr.json();
     const students: Student[] = await studR.json();
     setSession(sess);
     setMetaForm({ month: sess.month, year: sess.year, totalDays: String(sess.totalDays) });
@@ -118,10 +108,8 @@ export default function SessionPage() {
     setLoading(false);
   }, [id, router]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
-  // ── Save session metadata (month / year / totalDays) ───────────────────────
   async function saveSessionMeta() {
     if (!session) return;
     setSavingMeta(true);
@@ -130,8 +118,7 @@ export default function SessionPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          month: metaForm.month,
-          year:  metaForm.year,
+          month: metaForm.month, year: metaForm.year,
           totalDays: Number(metaForm.totalDays) || session.totalDays,
         }),
       });
@@ -140,23 +127,17 @@ export default function SessionPage() {
       setSession(updated);
       setEditingMeta(false);
       toast.success(`Updated to ${updated.month} ${updated.year}`);
-    } catch {
-      toast.error("Failed to update session");
-    } finally {
-      setSavingMeta(false);
-    }
+    } catch { toast.error("Failed to update session"); }
+    finally   { setSavingMeta(false); }
   }
 
-  // ── Row helpers ────────────────────────────────────────────────────────────
   function patchRow(i: number, patch: Partial<Row>) {
     setRows(rs => rs.map((r, idx) => idx === i ? { ...r, ...patch, dirty: true } : r));
   }
-  function setMark(rowIdx: number, subjIdx: number, val: string) {
-    const normalized = normalizeMark(val);
+  function setMark(ri: number, si: number, val: string) {
     setRows(rs => rs.map((r, i) => {
-      if (i !== rowIdx) return r;
-      const marks = [...r.marks];
-      marks[subjIdx] = normalized;
+      if (i !== ri) return r;
+      const marks = [...r.marks]; marks[si] = normalizeMark(val);
       return { ...r, marks, dirty: true };
     }));
   }
@@ -167,7 +148,6 @@ export default function SessionPage() {
     setRows(rs => [...rs, blankRow(session!.subjects.length)]);
   }
 
-  // ── Save ──────────────────────────────────────────────────────────────────
   async function saveRow(i: number) {
     const row = rows[i];
     if (!row.name.trim()) { toast.error("Student name required"); return; }
@@ -179,17 +159,11 @@ export default function SessionPage() {
     setRows(rs => rs.map((r, idx) => idx === i ? { ...r, saving: true } : r));
     try {
       if (row._id) {
-        const res = await fetch(`/api/sessions/${id}/students/${row._id}`, {
-          method: "PUT", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        const res  = await fetch(`/api/sessions/${id}/students/${row._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const updated: Student = await res.json();
         setRows(rs => rs.map((r, idx) => idx === i ? { ...studentToRow(updated), editing: false } : r));
       } else {
-        const res = await fetch(`/api/sessions/${id}/students`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        const res  = await fetch(`/api/sessions/${id}/students`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         const created: Student = await res.json();
         setRows(rs => rs.map((r, idx) => idx === i ? { ...studentToRow(created), editing: false } : r));
       }
@@ -200,7 +174,6 @@ export default function SessionPage() {
     }
   }
 
-  // ── Delete ────────────────────────────────────────────────────────────────
   async function deleteRow(i: number) {
     const row = rows[i];
     if (!confirm(`Remove "${row.name || "this student"}"?`)) return;
@@ -211,7 +184,6 @@ export default function SessionPage() {
     setRows(rs => rs.filter((_, idx) => idx !== i));
   }
 
-  // ── Export ────────────────────────────────────────────────────────────────
   async function handleExport() {
     if (!session) return;
     setExporting(true);
@@ -222,502 +194,660 @@ export default function SessionPage() {
         marks: r.marks.map(m => m.trim().toUpperCase() === "AB" ? "AB" : (Number(m) || 0)),
       })));
       toast.success("Excel downloaded!");
-    } catch (e) {
-      toast.error("Export failed: " + String(e));
-    } finally {
-      setExporting(false);
-    }
+    } catch (e) { toast.error("Export failed: " + String(e)); }
+    finally     { setExporting(false); }
   }
 
-  // ── Computed ──────────────────────────────────────────────────────────────
+  /* ── Derived values ── */
   const totalOutOf = session?.subjects.reduce((s, sub) => s + sub.outOf, 0) ?? 0;
-  function rowTotal(r: Row) { return r.marks.reduce((s, m) => s + markNum(m), 0); }
+  const rowTotal   = (r: Row) => r.marks.reduce((s, m) => s + markNum(m), 0);
 
-  const rankedRows = rows
-    .map((row, originalIdx) => ({
-      row,
-      originalIdx,
-      total: rowTotal(row),
-      percentage: totalOutOf > 0 ? (rowTotal(row) / totalOutOf) * 100 : 0,
-    }))
-    .filter(({ row }) => row.name.trim())
-    .sort((a, b) => {
-      if (b.total !== a.total) return b.total - a.total;
-      return a.row.name.localeCompare(b.row.name);
-    });
+  const namedRows  = rows.filter(r => r.name.trim());
+  const rankedRows = namedRows
+    .map((row) => ({ row, total: rowTotal(row), pct: totalOutOf > 0 ? (rowTotal(row) / totalOutOf) * 100 : 0 }))
+    .sort((a, b) => b.total !== a.total ? b.total - a.total : a.row.name.localeCompare(b.row.name));
 
-  const toppers = rankedRows.slice(0, 3);
+  const toppers   = rankedRows.slice(0, 3);
+  const passCount = namedRows.filter(r => totalOutOf > 0 && (rowTotal(r) / totalOutOf) * 100 >= 35).length;
+  const failCount = namedRows.length - passCount;
+  const classAvg  = namedRows.length > 0
+    ? (namedRows.reduce((s, r) => s + rowTotal(r), 0) / namedRows.length / totalOutOf * 100)
+    : 0;
 
-  // ── Filter by search ──────────────────────────────────────────────────────
+  const subjectAvgs = session?.subjects.map((_, si) => {
+    const vals = namedRows
+      .filter(r => r.marks[si]?.toString().toUpperCase() !== "AB")
+      .map(r => markNum(r.marks[si] ?? ""));
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  }) ?? [];
+
   const q = search.toLowerCase().trim();
   const visibleRows = rows
-    .map((r, originalIdx) => ({ row: r, originalIdx }))
+    .map((row, originalIdx) => ({ row, originalIdx }))
     .filter(({ row }) => !q || row.name.toLowerCase().includes(q));
 
+  const unsavedCount = rows.filter(r => r.dirty && !r._id).length;
+
+  /* ── Loading ── */
   if (loading) return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "var(--ds-background)" }}>
+      <div style={{ textAlign: "center" }}>
+        <Loader2 style={{ width: 32, height: 32, color: "var(--ds-primary)", animation: "spin 1s linear infinite", margin: "0 auto 12px" }} />
+        <p style={{ fontSize: 14, color: "var(--ds-text-subtle)", margin: 0 }}>Loading session…</p>
+      </div>
     </div>
   );
   if (!session) return null;
 
+  /* ── Render ── */
   return (
-    <div className="min-h-screen bg-background">
-      {/* ── Top bar ── */}
-      <header className="sticky top-0 z-10 border-b bg-card/80 backdrop-blur print:hidden">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/")} className="shrink-0">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <Image src="/image.png" alt="Logo" width={36} height={36} className="shrink-0 rounded-full" style={{ width: 36, height: 36 }} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold leading-tight">{session.className}</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {session.month} {session.year} • {session.subjects.length} subjects • out of {totalOutOf}
+    <div style={{ minHeight: "100vh", background: "var(--ds-background)" }}>
+
+      {/* ── Navigation ── */}
+      <TopNavigation>
+        <button
+          className="ds-icon-btn"
+          onClick={() => router.push("/")}
+          aria-label="Back"
+          style={{ border: "1px solid var(--ds-border)", flexShrink: 0 }}
+        >
+          <ArrowLeft style={{ width: 16, height: 16 }} />
+        </button>
+
+        <Image
+          src="/image.png" alt="Logo" width={32} height={32}
+          style={{ width: 32, height: 32, objectFit: "cover", borderRadius: "50%", border: "2px solid var(--ds-border)", flexShrink: 0 }}
+        />
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--ds-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {session.className}
+          </p>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--ds-text-subtle)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {session.month} {session.year} · {session.subjects.length} subjects · {totalOutOf} marks
+          </p>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <DSButton
+            variant="default" size="default"
+            iconBefore={<PlusCircle style={{ width: 14, height: 14 }} />}
+            onClick={addRow}
+            className="hidden sm:inline-flex"
+          >
+            Add Student
+          </DSButton>
+          <DSButton
+            variant="default" size="default"
+            iconBefore={<Eye style={{ width: 14, height: 14 }} />}
+            onClick={() => window.open(`/preview/${id}`, "_blank")}
+            className="hidden sm:inline-flex"
+          >
+            Preview
+          </DSButton>
+          <DSButton
+            variant="primary" size="default"
+            loading={exporting}
+            iconBefore={!exporting ? <Download style={{ width: 14, height: 14 }} /> : undefined}
+            onClick={handleExport}
+          >
+            <span className="hidden sm:inline">Export Excel</span>
+          </DSButton>
+        </div>
+
+        <ThemeToggle />
+        <NavAvatar />
+      </TopNavigation>
+
+      <PageContainer>
+
+        {/* ── Session meta chips ── */}
+        <div className="ds-meta-row">
+          <span className="ds-meta-chip">{session.instituteName}</span>
+          <span className="ds-meta-chip">{session.className}</span>
+          <button
+            className="ds-meta-chip clickable"
+            onClick={() => { setMetaForm({ month: session.month, year: session.year, totalDays: String(session.totalDays) }); setEditingMeta(true); }}
+          >
+            {session.month} {session.year}
+          </button>
+          <button
+            className="ds-meta-chip clickable"
+            onClick={() => { setMetaForm({ month: session.month, year: session.year, totalDays: String(session.totalDays) }); setEditingMeta(true); }}
+          >
+            {session.totalDays} days
+          </button>
+          <DSLozenge appearance="default">
+            {rows.length} student{rows.length !== 1 ? "s" : ""}
+          </DSLozenge>
+          <button
+            className="ds-icon-btn compact"
+            title="Edit session details"
+            onClick={() => { setMetaForm({ month: session.month, year: session.year, totalDays: String(session.totalDays) }); setEditingMeta(v => !v); }}
+          >
+            <Settings style={{ width: 13, height: 13 }} />
+          </button>
+        </div>
+
+        {/* ── Meta edit panel ── */}
+        {editingMeta && (
+          <div className="ds-edit-panel">
+            <p className="ds-caption" style={{ marginBottom: 12 }}>Edit Session Details</p>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 12 }}>
+              <div className="ds-field">
+                <label className="ds-field__label">Month</label>
+                <Select value={metaForm.month} onValueChange={v => setMetaForm(f => ({ ...f, month: v ?? f.month }))}>
+                  <SelectTrigger style={{ width: 148 }}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="ds-field">
+                <label className="ds-field__label">Year</label>
+                <input
+                  className="ds-textfield center"
+                  style={{ width: 80 }}
+                  value={metaForm.year}
+                  onChange={e => setMetaForm(f => ({ ...f, year: e.target.value }))}
+                  placeholder="2026" maxLength={4}
+                />
+              </div>
+              <div className="ds-field">
+                <label className="ds-field__label">Total Days</label>
+                <input
+                  className="ds-textfield center"
+                  style={{ width: 80 }}
+                  type="number" min={1} max={31}
+                  value={metaForm.totalDays}
+                  onChange={e => setMetaForm(f => ({ ...f, totalDays: e.target.value }))}
+                  placeholder="25"
+                />
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <DSButton
+                  variant="primary" size="default"
+                  loading={savingMeta}
+                  iconBefore={!savingMeta ? <Save style={{ width: 14, height: 14 }} /> : undefined}
+                  onClick={saveSessionMeta}
+                >
+                  Save
+                </DSButton>
+                <DSButton variant="subtle" size="default" onClick={() => setEditingMeta(false)}>
+                  Cancel
+                </DSButton>
+              </div>
+            </div>
+            <p style={{ marginTop: 8, fontSize: 12, color: "var(--ds-text-subtle)" }}>
+              Students stay the same — update month/year to reuse this class for next month.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={addRow} className="hidden gap-1.5 sm:flex">
-            <PlusCircle className="h-4 w-4" /> Add Student
-          </Button>
-          <Button variant="outline" size="sm" className="hidden gap-1.5 sm:flex"
-            onClick={() => window.open(`/preview/${id}`, "_blank")}>
-            <Eye className="h-4 w-4" /> Preview
-          </Button>
-          <Button size="sm" onClick={handleExport} disabled={exporting} className="gap-1.5">
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            <span className="hidden sm:inline">Download Excel</span>
-          </Button>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
-        {/* ── Info + Search bar ── */}
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {/* Badges + edit button */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{session.instituteName}</Badge>
-            <Badge variant="outline">{session.className}</Badge>
-            <Badge
-              variant="outline"
-              className="cursor-pointer select-none hover:bg-primary/10 hover:border-primary/40 transition-colors"
-              onClick={() => { setMetaForm({ month: session.month, year: session.year, totalDays: String(session.totalDays) }); setEditingMeta(true); }}
-            >
-              {session.month} {session.year}
-            </Badge>
-            <Badge
-              variant="outline"
-              className="cursor-pointer select-none hover:bg-primary/10 hover:border-primary/40 transition-colors"
-              onClick={() => { setMetaForm({ month: session.month, year: session.year, totalDays: String(session.totalDays) }); setEditingMeta(true); }}
-            >
-              Days: {session.totalDays}
-            </Badge>
-            <Badge variant="secondary">{rows.length} Student{rows.length !== 1 ? "s" : ""}</Badge>
-            <button
-              title="Edit month / year / total days"
-              onClick={() => { setMetaForm({ month: session.month, year: session.year, totalDays: String(session.totalDays) }); setEditingMeta(v => !v); }}
-              className="ml-1 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <Settings className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          {/* ── Inline meta editor ─────────────────────────────────────── */}
-          {editingMeta && (
-            <div className="w-full rounded-xl border bg-muted/40 px-4 py-3 mt-1">
-              <p className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Edit Month / Year / Total Days
-              </p>
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="grid gap-1">
-                  <label className="text-xs text-muted-foreground">Month</label>
-                  <Select
-                    value={metaForm.month}
-                    onValueChange={v => setMetaForm(f => ({ ...f, month: v ?? f.month }))}
-                  >
-                    <SelectTrigger className="h-8 w-36 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-xs text-muted-foreground">Year</label>
-                  <input
-                    value={metaForm.year}
-                    onChange={e => setMetaForm(f => ({ ...f, year: e.target.value }))}
-                    className="h-8 w-20 rounded-md border border-input bg-background px-2 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring"
-                    placeholder="2026"
-                    maxLength={4}
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <label className="text-xs text-muted-foreground">Total Days</label>
-                  <input
-                    type="number" min={1} max={31}
-                    value={metaForm.totalDays}
-                    onChange={e => setMetaForm(f => ({ ...f, totalDays: e.target.value }))}
-                    className="h-8 w-20 rounded-md border border-input bg-background px-2 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring"
-                    placeholder="25"
-                  />
-                </div>
-                <div className="flex gap-2 pb-0.5">
-                  <Button size="sm" className="h-8 gap-1.5" onClick={saveSessionMeta} disabled={savingMeta}>
-                    {savingMeta ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                    Save
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditingMeta(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                💡 Students stay the same — just update month/year to generate next month&apos;s marksheet.
-              </p>
-            </div>
-          )}
-
-          {/* Search */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search student…"
-              className="pl-8 pr-8 h-9"
-            />
-            {search && (
-              <button onClick={() => setSearch("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Mobile: Add button */}
-        <Button variant="outline" className="mb-4 w-full gap-2 sm:hidden" onClick={addRow}>
-          <PlusCircle className="h-4 w-4" /> Add Student
-        </Button>
-
-        {/* ── Search result info ── */}
-        {q && (
-          <p className="mb-3 text-xs text-muted-foreground">
-            {visibleRows.length} result{visibleRows.length !== 1 ? "s" : ""} for &quot;{search}&quot;
-          </p>
         )}
 
+        {/* ── Stats ── */}
+        {namedRows.length > 0 && (
+          <div className="ds-grid-stats print:hidden" style={{ marginBottom: 20 }}>
+            <DSStatCard
+              label="Students"
+              value={namedRows.length}
+              icon={<Users style={{ width: 18, height: 18, color: "#0052CC" }} />}
+              iconBg="var(--ds-brand-bg)"
+            />
+            <DSStatCard
+              label="Class Avg"
+              value={`${classAvg.toFixed(1)}%`}
+              icon={<BarChart3 style={{ width: 18, height: 18, color: "#0052CC" }} />}
+              iconBg="var(--ds-brand-bg)"
+            />
+            <DSStatCard
+              label="Passed"
+              value={passCount}
+              icon={<CheckCircle style={{ width: 18, height: 18, color: "#1F845A" }} />}
+              iconBg="var(--ds-success-bg)"
+              valueColor="#1F845A"
+            />
+            <DSStatCard
+              label="Failed"
+              value={failCount}
+              icon={<XCircle style={{ width: 18, height: 18, color: "var(--ds-danger)" }} />}
+              iconBg="var(--ds-danger-bg)"
+              valueColor="var(--ds-danger)"
+            />
+          </div>
+        )}
+
+        {/* ── Toppers ── */}
         {toppers.length > 0 && (
-          <div className="mb-3 rounded-xl border bg-card/70 p-3 shadow-sm print:hidden">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Top 3 Toppers</p>
-                <p className="text-xs text-muted-foreground">Automatically ranked from total marks</p>
+          <div className="ds-toppers print:hidden">
+            <div className="ds-section-header">
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Trophy style={{ width: 15, height: 15, color: "#F5A623" }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ds-text)" }}>Top Performers</span>
               </div>
-              <Badge variant="secondary" className="h-6 px-2 text-[10px]">
-                {toppers.length} detected
-              </Badge>
+              <span style={{ fontSize: 12, color: "var(--ds-text-subtle)" }}>{session.month} {session.year}</span>
             </div>
-            <div className="grid gap-2 md:grid-cols-3">
-              {toppers.map(({ row, total, percentage }, index) => (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+              {toppers.map(({ row, total, pct }, idx) => (
                 <div
-                  key={`${row._id ?? row.name}-${index}`}
-                  className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2"
+                  key={`${row._id ?? row.name}-${idx}`}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "14px 16px",
+                    borderRight: idx < toppers.length - 1 ? "1px solid var(--ds-border)" : "none",
+                  }}
                 >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                        {index + 1}
+                  <span style={{ fontSize: 24, lineHeight: 1, userSelect: "none" }}>{MEDAL[idx]}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 600, color: "var(--ds-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {row.name}
+                    </p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div className="ds-progress">
+                        <div className="ds-progress__fill" style={{ width: `${Math.round(pct)}%` }} />
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ds-text-subtle)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                        {total}/{totalOutOf}
                       </span>
-                      <p className="truncate text-sm font-semibold">{row.name}</p>
                     </div>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">{percentage.toFixed(1)}% of {totalOutOf}</p>
                   </div>
-                  <Badge variant="outline" className="shrink-0 px-2 py-0.5 text-[10px] font-mono">
-                    {total}/{totalOutOf}
-                  </Badge>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-20 text-center">
-            <p className="text-muted-foreground">No students yet. Add your first student above.</p>
+        {/* ── Toolbar ── */}
+        <div className="ds-toolbar">
+          <div style={{ position: "relative", flex: 1, maxWidth: 280 }}>
+            <Search style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "var(--ds-text-subtlest)", pointerEvents: "none" }} />
+            <input
+              className="ds-textfield compact"
+              style={{ paddingLeft: 32, paddingRight: 32 }}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search student…"
+            />
+            {search && (
+              <button
+                className="ds-icon-btn compact"
+                style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)" }}
+                onClick={() => setSearch("")}
+              >
+                <X style={{ width: 13, height: 13 }} />
+              </button>
+            )}
           </div>
+          {q && (
+            <span style={{ fontSize: 12, color: "var(--ds-text-subtle)", flexShrink: 0 }}>
+              {visibleRows.length} of {rows.length}
+            </span>
+          )}
+          <DSButton
+            variant="default" size="compact"
+            iconBefore={<PlusCircle style={{ width: 13, height: 13 }} />}
+            onClick={addRow}
+            className="ml-auto sm:hidden"
+          >
+            Add
+          </DSButton>
+        </div>
+
+        {/* ── Empty states ── */}
+        {rows.length === 0 ? (
+          <DSEmptyState
+            icon={<Users style={{ width: 24, height: 24, color: "var(--ds-primary)" }} />}
+            title="No students added yet"
+            description="Add your first student to start entering marks."
+            action={
+              <DSButton
+                variant="default" size="default"
+                iconBefore={<PlusCircle style={{ width: 16, height: 16 }} />}
+                onClick={addRow}
+              >
+                Add First Student
+              </DSButton>
+            }
+          />
         ) : visibleRows.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-center">
-            <Search className="h-10 w-10 text-muted-foreground/30" />
-            <p className="text-muted-foreground">No student found for &quot;{search}&quot;</p>
-            <Button variant="ghost" size="sm" onClick={() => setSearch("")}>Clear search</Button>
+          <div className="ds-empty" style={{ padding: "40px 32px" }}>
+            <Search style={{ width: 28, height: 28, color: "var(--ds-text-subtlest)" }} />
+            <p style={{ margin: 0, fontSize: 14, color: "var(--ds-text-subtle)" }}>
+              No student found for &quot;{search}&quot;
+            </p>
+            <DSButton variant="subtle" size="compact" onClick={() => setSearch("")}>
+              Clear search
+            </DSButton>
           </div>
         ) : (
           <>
             {/* ── Desktop table ── */}
-            <div className="hidden overflow-x-auto rounded-2xl border bg-card shadow-sm sm:block">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3 text-left font-semibold w-8">#</th>
-                    <th className="px-4 py-3 text-left font-semibold min-w-40">Student Name</th>
-                    {session.subjects.map((sub, i) => (
-                      <th key={i} className="px-3 py-3 text-center font-semibold">
-                        {sub.name}<br /><span className="font-normal normal-case">/{sub.outOf}</span>
+            <div className="hidden sm:block" style={{ background: "var(--ds-surface)", border: "1px solid var(--ds-border)", borderRadius: 8, overflow: "hidden", boxShadow: "var(--shadow-xs)" }}>
+              <div style={{ overflowX: "auto" }}>
+                <table className="ds-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 40, textAlign: "center" }}>#</th>
+                      <th style={{ minWidth: 180 }}>Student Name</th>
+                      {session.subjects.map((sub, i) => (
+                        <th key={i} className="center">
+                          <span style={{ display: "block" }}>{sub.name}</span>
+                          <span style={{ display: "block", fontSize: 10, fontWeight: 400, textTransform: "none", letterSpacing: 0, color: "var(--ds-text-subtlest)" }}>
+                            /{sub.outOf}
+                          </span>
+                        </th>
+                      ))}
+                      <th className="center">
+                        <span style={{ display: "block" }}>Presenty</span>
+                        <span style={{ display: "block", fontSize: 10, fontWeight: 400, textTransform: "none", letterSpacing: 0, color: "var(--ds-text-subtlest)" }}>
+                          /{session.totalDays}
+                        </span>
                       </th>
-                    ))}
-                    <th className="px-3 py-3 text-center font-semibold">
-                      Presenty<br /><span className="font-normal normal-case">/{session.totalDays}</span>
-                    </th>
-                    <th className="px-3 py-3 text-center font-semibold">
-                      Total<br /><span className="font-normal normal-case">/{totalOutOf}</span>
-                    </th>
-                    <th className="px-3 py-3 text-center font-semibold w-24">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleRows.map(({ row, originalIdx: i }) => {
-                    const total = rowTotal(row);
-                    const pct   = totalOutOf > 0 ? (total / totalOutOf) * 100 : 0;
-                    return (
-                      <tr key={i}
-                        className={`border-b last:border-0 transition-colors ${
-                          row.editing ? "bg-blue-50/40 dark:bg-blue-950/20" : "hover:bg-muted/20"
-                        }`}
-                      >
-                        <td className="px-4 py-2 text-muted-foreground text-xs">{i + 1}</td>
+                      <th className="center">
+                        <span style={{ display: "block" }}>Total</span>
+                        <span style={{ display: "block", fontSize: 10, fontWeight: 400, textTransform: "none", letterSpacing: 0, color: "var(--ds-text-subtlest)" }}>
+                          /{totalOutOf}
+                        </span>
+                      </th>
+                      <th className="center" style={{ width: 88 }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleRows.map(({ row, originalIdx: i }) => {
+                      const total = rowTotal(row);
+                      const pct   = totalOutOf > 0 ? (total / totalOutOf) * 100 : 0;
+                      const isPass = pct >= 35;
+                      return (
+                        <tr key={i} className={row.editing ? "is-editing" : ""}>
+                          {/* # */}
+                          <td style={{ textAlign: "center", fontSize: 12, color: "var(--ds-text-subtlest)", fontVariantNumeric: "tabular-nums" }}>
+                            {i + 1}
+                          </td>
 
-                        {/* Name */}
-                        <td className="px-3 py-2">
-                          {row.editing ? (
-                            <Input value={row.name}
-                              onChange={e => patchRow(i, { name: e.target.value })}
-                              placeholder="Student name"
-                              className="h-8 min-w-35 text-sm"
-                            />
-                          ) : (
-                            <span className="font-medium text-sm">{row.name || <span className="text-muted-foreground">—</span>}</span>
-                          )}
-                        </td>
-
-                        {/* Marks */}
-                        {session.subjects.map((_, si) => (
-                          <td key={si} className="px-2 py-2 text-center">
+                          {/* Name */}
+                          <td>
                             {row.editing ? (
-                              <Input type="text"
-                                value={row.marks[si] ?? ""}
-                                onChange={e => setMark(i, si, e.target.value)}
-                                placeholder="0"
-                                maxLength={5}
-                                className={`h-8 w-14 text-center text-sm font-mono ${
-                                  row.marks[si]?.toUpperCase() === "AB" ? "text-orange-500 font-bold" : ""
-                                }`}
+                              <input
+                                className="ds-textfield compact"
+                                style={{ minWidth: 140 }}
+                                value={row.name}
+                                onChange={e => patchRow(i, { name: e.target.value })}
+                                placeholder="Student name"
                               />
                             ) : (
-                              <ViewCell value={row.marks[si] ?? ""} />
+                              <span style={{ fontSize: 14, fontWeight: 500, color: "var(--ds-text)" }}>
+                                {row.name || <span style={{ color: "var(--ds-text-subtlest)" }}>—</span>}
+                              </span>
                             )}
                           </td>
-                        ))}
 
-                        {/* Presenty */}
-                        <td className="px-2 py-2 text-center">
-                          {row.editing ? (
-                            <Input type="number" min={0} max={session.totalDays}
-                              value={row.attendance}
-                              onChange={e => patchRow(i, { attendance: e.target.value })}
-                              placeholder="0"
-                              className="h-8 w-14 text-center text-sm"
-                            />
-                          ) : (
-                            <ViewCell value={row.attendance} />
-                          )}
-                        </td>
+                          {/* Subject marks */}
+                          {session.subjects.map((_, si) => (
+                            <td key={si} style={{ textAlign: "center" }}>
+                              {row.editing ? (
+                                <input
+                                  className={`ds-textfield compact center mono${row.marks[si]?.toUpperCase() === "AB" ? "" : ""}`}
+                                  style={{
+                                    width: 56,
+                                    color: row.marks[si]?.toUpperCase() === "AB" ? "#B45309" : undefined,
+                                    fontWeight: row.marks[si]?.toUpperCase() === "AB" ? 700 : undefined,
+                                  }}
+                                  value={row.marks[si] ?? ""}
+                                  onChange={e => setMark(i, si, e.target.value)}
+                                  placeholder="—"
+                                  maxLength={5}
+                                />
+                              ) : (
+                                <ViewCell value={row.marks[si] ?? ""} />
+                              )}
+                            </td>
+                          ))}
 
-                        {/* Total badge */}
-                        <td className="px-3 py-2 text-center">
-                          <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold min-w-13 ${
-                            pct >= 60 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                          }`}>
-                            {total}/{totalOutOf}
-                          </span>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="px-2 py-2">
-                          <div className="flex items-center justify-center gap-1">
+                          {/* Presenty */}
+                          <td style={{ textAlign: "center" }}>
                             {row.editing ? (
-                              <Button size="icon" variant="ghost"
-                                className="h-8 w-8 text-primary hover:bg-primary/10"
-                                onClick={() => saveRow(i)} disabled={row.saving}>
-                                {row.saving
-                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  : <Save className="h-3.5 w-3.5" />}
-                              </Button>
+                              <input
+                                className="ds-textfield compact center"
+                                style={{ width: 56 }}
+                                type="number" min={0} max={session.totalDays}
+                                value={row.attendance}
+                                onChange={e => patchRow(i, { attendance: e.target.value })}
+                                placeholder="0"
+                              />
                             ) : (
-                              <Button size="icon" variant="ghost"
-                                className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                onClick={() => toggleEdit(i)}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
+                              <ViewCell value={row.attendance} />
                             )}
-                            <Button size="icon" variant="ghost"
-                              className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                              onClick={() => deleteRow(i)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                          </td>
+
+                          {/* Total */}
+                          <td style={{ textAlign: "center" }}>
+                            {row.name.trim() ? (
+                              <DSLozenge appearance={isPass ? "success" : "danger"}>
+                                {total}/{totalOutOf}
+                              </DSLozenge>
+                            ) : (
+                              <span style={{ color: "var(--ds-text-subtlest)", fontSize: 13 }}>—</span>
+                            )}
+                          </td>
+
+                          {/* Actions */}
+                          <td>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                              {row.editing ? (
+                                <button
+                                  className="ds-icon-btn brand active"
+                                  onClick={() => saveRow(i)}
+                                  disabled={row.saving}
+                                  title="Save"
+                                >
+                                  {row.saving
+                                    ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+                                    : <Save style={{ width: 14, height: 14 }} />
+                                  }
+                                </button>
+                              ) : (
+                                <button
+                                  className="ds-icon-btn brand"
+                                  onClick={() => toggleEdit(i)}
+                                  title="Edit"
+                                >
+                                  <Pencil style={{ width: 14, height: 14 }} />
+                                </button>
+                              )}
+                              <button
+                                className="ds-icon-btn danger"
+                                onClick={() => deleteRow(i)}
+                                title="Delete"
+                              >
+                                <Trash2 style={{ width: 14, height: 14 }} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+
+                  {/* Class average footer */}
+                  {namedRows.length >= 2 && !q && (
+                    <tfoot>
+                      <tr>
+                        <td />
+                        <td>
+                          <span className="ds-caption">Class Avg</span>
                         </td>
+                        {subjectAvgs.map((avg, si) => (
+                          <td key={si} style={{ textAlign: "center" }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ds-text-subtle)", fontVariantNumeric: "tabular-nums" }}>
+                              {avg !== null ? avg.toFixed(1) : "—"}
+                            </span>
+                          </td>
+                        ))}
+                        <td style={{ textAlign: "center" }}>
+                          <span style={{ fontSize: 12, color: "var(--ds-text-subtle)" }}>—</span>
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <DSLozenge appearance="primary" isBold>
+                            {classAvg.toFixed(1)}%
+                          </DSLozenge>
+                        </td>
+                        <td />
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
             </div>
 
             {/* ── Mobile cards ── */}
-            <div className="space-y-3 sm:hidden">
+            <div className="sm:hidden flex flex-col gap-3">
               {visibleRows.map(({ row, originalIdx: i }) => {
                 const total = rowTotal(row);
                 const pct   = totalOutOf > 0 ? (total / totalOutOf) * 100 : 0;
+                const isPass = pct >= 35;
                 return (
-                  <Card key={i} className={`overflow-hidden transition-colors ${
-                    row.editing ? "border-primary/30 bg-blue-50/30 dark:bg-blue-950/20" : ""
-                  }`}>
-                    <CardContent className="p-4 space-y-3">
-                      {/* Row header */}
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                          {i + 1}
+                  <div
+                    key={i}
+                    style={{
+                      background: "var(--ds-surface)",
+                      border: `1px solid ${row.editing ? "#4C9AFF" : "var(--ds-border)"}`,
+                      borderLeft: `4px solid ${row.editing ? "var(--ds-primary)" : "var(--ds-border)"}`,
+                      borderRadius: 8,
+                      padding: 16,
+                      boxShadow: "var(--shadow-xs)",
+                    }}
+                  >
+                    {/* Header */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                      <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 4, background: "var(--ds-neutral)", fontSize: 12, fontWeight: 700, color: "var(--ds-text-subtle)", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
+                        {i + 1}
+                      </span>
+                      {row.editing ? (
+                        <input
+                          className="ds-textfield compact"
+                          style={{ flex: 1 }}
+                          value={row.name}
+                          onChange={e => patchRow(i, { name: e.target.value })}
+                          placeholder="Student name"
+                        />
+                      ) : (
+                        <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "var(--ds-text)" }}>
+                          {row.name || "—"}
                         </span>
-                        {row.editing ? (
-                          <Input value={row.name}
-                            onChange={e => patchRow(i, { name: e.target.value })}
-                            placeholder="Student name" className="flex-1 h-9" />
-                        ) : (
-                          <span className="flex-1 font-semibold text-sm">{row.name || "—"}</span>
-                        )}
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
-                          pct >= 60 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                        }`}>
-                          {total}/{totalOutOf}
-                        </span>
-                      </div>
-
-                      {/* Marks grid */}
-                      <div className="grid grid-cols-3 gap-2">
-                        {session.subjects.map((sub, si) => (
-                          <div key={si} className="grid gap-1">
-                            <span className="truncate text-xs text-muted-foreground">{sub.name}/{sub.outOf}</span>
-                            {row.editing ? (
-                              <Input type="text"
-                                value={row.marks[si] ?? ""}
-                                onChange={e => setMark(i, si, e.target.value)}
-                                placeholder="0" maxLength={5}
-                                className={`h-8 text-center text-sm font-mono ${
-                                  row.marks[si]?.toUpperCase() === "AB" ? "text-orange-500 font-bold" : ""
-                                }`}
-                              />
-                            ) : (
-                              <div className="h-8 flex items-center justify-center rounded border border-border/40 bg-muted/30">
-                                <ViewCell value={row.marks[si] ?? ""} />
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        <div className="grid gap-1">
-
-                      {toppers.length > 0 && (
-                        <div className="mb-4 rounded-2xl border bg-card/70 p-4 shadow-sm print:hidden">
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Top 3 Toppers</p>
-                              <p className="text-sm text-muted-foreground">Automatically ranked from total marks</p>
-                            </div>
-                            <Badge variant="secondary">{toppers.length} detected</Badge>
-                          </div>
-                          <div className="grid gap-3 md:grid-cols-3">
-                            {toppers.map(({ row, total, percentage }, index) => (
-                              <div
-                                key={`${row._id ?? row.name}-${index}`}
-                                className="flex items-center justify-between rounded-xl border bg-muted/30 px-4 py-3"
-                              >
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                                      {index + 1}
-                                    </span>
-                                    <p className="truncate font-semibold">{row.name}</p>
-                                  </div>
-                                  <p className="mt-1 text-xs text-muted-foreground">{percentage.toFixed(1)}% of {totalOutOf}</p>
-                                </div>
-                                <Badge variant="outline" className="shrink-0 font-mono">
-                                  {total}/{totalOutOf}
-                                </Badge>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
                       )}
-                          <span className="text-xs text-muted-foreground">Presenty/{session.totalDays}</span>
+                      {row.name.trim() && (
+                        <DSLozenge appearance={isPass ? "success" : "danger"}>
+                          {total}/{totalOutOf}
+                        </DSLozenge>
+                      )}
+                    </div>
+
+                    {/* Mark inputs */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
+                      {session.subjects.map((sub, si) => (
+                        <div key={si} style={{ display: "grid", gap: 4 }}>
+                          <span style={{ fontSize: 11, color: "var(--ds-text-subtle)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {sub.name}/{sub.outOf}
+                          </span>
                           {row.editing ? (
-                            <Input type="number" min={0}
-                              value={row.attendance}
-                              onChange={e => patchRow(i, { attendance: e.target.value })}
-                              placeholder="0" className="h-8 text-center text-sm" />
+                            <input
+                              className="ds-textfield compact center mono"
+                              value={row.marks[si] ?? ""}
+                              onChange={e => setMark(i, si, e.target.value)}
+                              placeholder="—" maxLength={5}
+                            />
                           ) : (
-                            <div className="h-8 flex items-center justify-center rounded border border-border/40 bg-muted/30">
-                              <ViewCell value={row.attendance} />
+                            <div style={{ height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 3, border: "1px solid var(--ds-border)", background: "var(--ds-surface-sunken)" }}>
+                              <ViewCell value={row.marks[si] ?? ""} />
                             </div>
                           )}
                         </div>
-                      </div>
-
-                      <Separator />
-
-                      {/* Mobile actions */}
-                      <div className="flex items-center justify-end gap-2">
+                      ))}
+                      <div style={{ display: "grid", gap: 4 }}>
+                        <span style={{ fontSize: 11, color: "var(--ds-text-subtle)" }}>Presenty/{session.totalDays}</span>
                         {row.editing ? (
-                          <Button size="sm" className="h-8 gap-1.5"
-                            onClick={() => saveRow(i)} disabled={row.saving}>
-                            {row.saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                            Save
-                          </Button>
+                          <input
+                            className="ds-textfield compact center"
+                            type="number" min={0}
+                            value={row.attendance}
+                            onChange={e => patchRow(i, { attendance: e.target.value })}
+                            placeholder="0"
+                          />
                         ) : (
-                          <Button size="sm" variant="outline" className="h-8 gap-1.5"
-                            onClick={() => toggleEdit(i)}>
-                            <Pencil className="h-3 w-3" /> Edit
-                          </Button>
+                          <div style={{ height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 3, border: "1px solid var(--ds-border)", background: "var(--ds-surface-sunken)" }}>
+                            <ViewCell value={row.attendance} />
+                          </div>
                         )}
-                        <Button size="sm" variant="ghost" className="h-8 text-destructive"
-                          onClick={() => deleteRow(i)}>
-                          <Trash2 className="h-3 w-3 mr-1" /> Remove
-                        </Button>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, paddingTop: 12, borderTop: "1px solid var(--ds-border)" }}>
+                      {row.editing ? (
+                        <DSButton
+                          variant="primary" size="compact"
+                          loading={row.saving}
+                          iconBefore={!row.saving ? <Save style={{ width: 12, height: 12 }} /> : undefined}
+                          onClick={() => saveRow(i)}
+                        >
+                          Save
+                        </DSButton>
+                      ) : (
+                        <DSButton
+                          variant="default" size="compact"
+                          iconBefore={<Pencil style={{ width: 12, height: 12 }} />}
+                          onClick={() => toggleEdit(i)}
+                        >
+                          Edit
+                        </DSButton>
+                      )}
+                      <DSButton
+                        variant="subtle-danger" size="compact"
+                        iconBefore={<Trash2 style={{ width: 12, height: 12 }} />}
+                        onClick={() => deleteRow(i)}
+                      >
+                        Remove
+                      </DSButton>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           </>
         )}
 
-        {/* ── Download footer ── */}
+        {/* ── Export footer ── */}
         {rows.length > 0 && (
-          <div className="mt-6 flex flex-col items-center gap-3 print:hidden">
-            <Separator />
-            <p className="text-sm text-muted-foreground">
-              {rows.filter(r => r.dirty && !r._id).length > 0
-                ? "⚠ Save unsaved rows before downloading."
-                : `${rows.length} student${rows.length !== 1 ? "s" : ""} ready to export.`}
-            </p>
-            <Button size="lg" onClick={handleExport} disabled={exporting} className="w-full max-w-xs gap-2">
-              {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
-              Download Excel Sheet
-            </Button>
+          <div className="ds-export-footer print:hidden">
+            {unsavedCount > 0 ? (
+              <div className="ds-alert ds-alert--warning">
+                {unsavedCount} unsaved row{unsavedCount !== 1 ? "s" : ""} — please save before exporting.
+              </div>
+            ) : (
+              <p style={{ margin: 0, fontSize: 14, color: "var(--ds-text-subtle)" }}>
+                {rows.length} student{rows.length !== 1 ? "s" : ""} ready to export.
+              </p>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 400 }}>
+              <DSButton
+                variant="primary" size="large"
+                loading={exporting}
+                iconBefore={!exporting ? <Download style={{ width: 18, height: 18 }} /> : undefined}
+                onClick={handleExport}
+                style={{ width: "100%" }}
+              >
+                Download Excel Sheet
+              </DSButton>
+              <DSButton
+                variant="default" size="large"
+                iconBefore={<Eye style={{ width: 18, height: 18 }} />}
+                onClick={() => window.open(`/preview/${id}`, "_blank")}
+                style={{ width: "100%" }}
+              >
+                Print Preview
+              </DSButton>
+            </div>
           </div>
         )}
-      </main>
+      </PageContainer>
     </div>
   );
 }

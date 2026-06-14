@@ -1,12 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -14,8 +10,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -23,14 +17,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { PlusCircle, Trash2, BookOpen, Calendar, Users, ChevronRight } from "lucide-react";
+import {
+  PlusCircle,
+  Trash2,
+  BookOpen,
+  Calendar,
+  ChevronRight,
+  Users,
+  ClipboardList,
+  Hash,
+} from "lucide-react";
 
+/* ── DS Components ── */
+import { DSButton }     from "@/ui/components/Button";
+import { DSCard }       from "@/ui/components/Card";
+import { DSLozenge }    from "@/ui/components/Lozenge";
+import { DSEmptyState } from "@/ui/components/EmptyState";
+import { DSPageHeader } from "@/ui/components/PageHeader";
+import { ThemeToggle }  from "@/ui/components/ThemeToggle";
+import { NavAvatar }    from "@/ui/components/NavAvatar";
+import { TopNavigation }  from "@/ui/layout/TopNavigation";
+import { PageContainer }  from "@/ui/layout/PageContainer";
+
+/* ── Constants ── */
 const MONTHS = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
 ];
 
+/* ── Types ── */
 interface Subject { name: string; outOf: number }
 interface Session {
   _id: string;
@@ -52,23 +69,24 @@ const EMPTY_FORM = {
   totalDays: "25",
   managerName: "Manager",
   subjects: [
-    { name: "Physics", outOf: 20 },
+    { name: "Physics",   outOf: 20 },
     { name: "Chemistry", outOf: 20 },
-    { name: "Math", outOf: 20 },
-    { name: "Biology", outOf: 20 },
-    { name: "English", outOf: 20 },
+    { name: "Math",      outOf: 20 },
+    { name: "Biology",   outOf: 20 },
+    { name: "English",   outOf: 20 },
   ] as Subject[],
 };
 
+/* ════════════════════════════════════════════════════════════ */
 export default function HomePage() {
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading]   = useState(true);
+  const [open, setOpen]         = useState(false);
+  const [form, setForm]         = useState(EMPTY_FORM);
+  const [saving, setSaving]     = useState(false);
 
-  async function loadSessions() {
+  const loadSessions = useCallback(async () => {
     try {
       const res = await fetch("/api/sessions");
       if (!res.ok) {
@@ -82,9 +100,9 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  useEffect(() => { loadSessions(); }, []);
+  useEffect(() => { loadSessions(); }, [loadSessions]);
 
   function setField<K extends keyof typeof EMPTY_FORM>(k: K, v: (typeof EMPTY_FORM)[K]) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -138,183 +156,287 @@ export default function HomePage() {
     loadSessions();
   }
 
+  const totalOutOf = (subjects: Subject[]) => subjects.reduce((s, sub) => s + sub.outOf, 0);
+
+  const count = sessions.length;
+  const description = loading
+    ? "Loading sessions…"
+    : count === 0
+      ? "No sessions yet. Create your first one to get started."
+      : `${count} exam session${count !== 1 ? "s" : ""}`;
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* ── Header ── */}
-      <header className="border-b bg-card shadow-sm print:hidden">
-        <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-4 sm:px-6">
-          <Image src="/image.png" alt="Logo" width={52} height={52} className="rounded-full" style={{ width: 52, height: 52 }} />
-          <div className="flex-1">
-            <h1 className="text-xl font-bold leading-tight text-foreground">
-              Shree Saraswati Classes
-            </h1>
-            <p className="text-sm text-muted-foreground">Mark Memo Management System</p>
-          </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger
-              render={
-                <Button className="gap-2">
-                  <PlusCircle className="h-4 w-4" />
-                  <span className="hidden sm:inline">New Session</span>
-                  <span className="sm:hidden">New</span>
-                </Button>
-              }
-            />
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Create Exam Session</DialogTitle>
-              </DialogHeader>
+    <div style={{ minHeight: "100vh", background: "var(--ds-background)" }}>
 
-              <div className="space-y-4 py-2">
-                {/* Institute */}
-                <div className="grid gap-1.5">
-                  <Label>Institute Name</Label>
-                  <Input value={form.instituteName} onChange={(e) => setField("instituteName", e.target.value)} />
-                </div>
+      {/* ── Top Navigation ─────────────────────────────────────── */}
+      <TopNavigation>
+        <Image
+          src="/image.png"
+          alt="Saraswati Classes Logo"
+          width={36} height={36}
+          style={{ width: 36, height: 36, objectFit: "cover", borderRadius: "50%", border: "2px solid var(--ds-border)", flexShrink: 0 }}
+        />
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1.5">
-                    <Label>Class *</Label>
-                    <Input placeholder="11th Science" value={form.className} onChange={(e) => setField("className", e.target.value)} />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label>Year</Label>
-                    <Input placeholder="2026" value={form.year} onChange={(e) => setField("year", e.target.value)} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1.5">
-                    <Label>Month</Label>
-                    <Select value={form.month} onValueChange={(v) => setField("month", v ?? form.month)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {MONTHS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label>Total Days</Label>
-                    <Input type="number" placeholder="25" value={form.totalDays} onChange={(e) => setField("totalDays", e.target.value)} />
-                  </div>
-                </div>
-
-                <div className="grid gap-1.5">
-                  <Label>Manager / Footer Name</Label>
-                  <Input value={form.managerName} onChange={(e) => setField("managerName", e.target.value)} />
-                </div>
-
-                <Separator />
-
-                {/* Subjects */}
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <Label className="text-sm font-semibold">Subjects &amp; Out-of Marks</Label>
-                    <Button variant="outline" size="sm" onClick={addSubject}>+ Add</Button>
-                  </div>
-                  <div className="space-y-2">
-                    {form.subjects.map((s, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <Input
-                          placeholder="Subject name"
-                          value={s.name}
-                          onChange={(e) => setSubject(i, "name", e.target.value)}
-                          className="flex-1"
-                        />
-                        <Input
-                          type="number"
-                          placeholder="20"
-                          value={s.outOf}
-                          onChange={(e) => setSubject(i, "outOf", e.target.value)}
-                          className="w-20 text-center"
-                        />
-                        <Button variant="ghost" size="icon" onClick={() => removeSubject(i)} className="text-destructive hover:text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-1.5 text-right text-xs text-muted-foreground">
-                    Total out of: {form.subjects.reduce((s, sub) => s + sub.outOf, 0)}
-                  </p>
-                </div>
-
-                <Button className="w-full" onClick={createSession} disabled={saving}>
-                  {saving ? "Creating…" : "Create Session & Add Students"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--ds-text)", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            Shree Saraswati Classes, Kannad
+          </p>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--ds-text-subtle)" }}>
+            Mark Memo Management System
+          </p>
         </div>
-      </header>
 
-      {/* ── Sessions list ── */}
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        {loading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger
+            render={
+              <DSButton variant="primary" size="default" iconBefore={<PlusCircle style={{ width: 16, height: 16 }} />}>
+                <span className="hidden sm:inline">New Session</span>
+                <span className="sm:hidden">New</span>
+              </DSButton>
+            }
+          />
+
+          {/* ── Create Session Modal ── */}
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Exam Session</DialogTitle>
+            </DialogHeader>
+
+            <div style={{ padding: "20px 24px 24px" }}>
+              {/* Institute */}
+              <div className="ds-field" style={{ marginBottom: 16 }}>
+                <label className="ds-field__label">Institute Name</label>
+                <input
+                  className="ds-textfield"
+                  value={form.instituteName}
+                  onChange={(e) => setField("instituteName", e.target.value)}
+                />
+              </div>
+
+              {/* Class + Year */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                <div className="ds-field">
+                  <label className="ds-field__label">
+                    Class <span className="ds-field__required">*</span>
+                  </label>
+                  <input
+                    className="ds-textfield"
+                    placeholder="e.g. 11th Science"
+                    value={form.className}
+                    onChange={(e) => setField("className", e.target.value)}
+                  />
+                </div>
+                <div className="ds-field">
+                  <label className="ds-field__label">Year</label>
+                  <input
+                    className="ds-textfield"
+                    placeholder="2026"
+                    value={form.year}
+                    onChange={(e) => setField("year", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Month + Days */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                <div className="ds-field">
+                  <label className="ds-field__label">Month</label>
+                  <Select value={form.month} onValueChange={(v) => setField("month", v ?? form.month)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="ds-field">
+                  <label className="ds-field__label">Total Days</label>
+                  <input
+                    className="ds-textfield"
+                    type="number"
+                    placeholder="25"
+                    value={form.totalDays}
+                    onChange={(e) => setField("totalDays", e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Manager */}
+              <div className="ds-field" style={{ marginBottom: 20 }}>
+                <label className="ds-field__label">Manager / Footer Name</label>
+                <input
+                  className="ds-textfield"
+                  value={form.managerName}
+                  onChange={(e) => setField("managerName", e.target.value)}
+                />
+              </div>
+
+              <div className="ds-separator" style={{ marginBottom: 20 }} />
+
+              {/* Subjects */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ds-text)" }}>
+                      Subjects &amp; Marks
+                    </p>
+                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--ds-text-subtle)" }}>
+                      Total out of:{" "}
+                      <strong style={{ color: "var(--ds-primary)" }}>
+                        {form.subjects.reduce((s, sub) => s + sub.outOf, 0)}
+                      </strong>
+                    </p>
+                  </div>
+                  <DSButton variant="default" size="compact" onClick={addSubject}>
+                    + Add Subject
+                  </DSButton>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {form.subjects.map((s, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        className="ds-textfield"
+                        placeholder="Subject name"
+                        value={s.name}
+                        onChange={(e) => setSubject(i, "name", e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                      <input
+                        className="ds-textfield center"
+                        type="number"
+                        placeholder="20"
+                        value={s.outOf}
+                        onChange={(e) => setSubject(i, "outOf", e.target.value)}
+                        style={{ width: 72 }}
+                      />
+                      <button
+                        className="ds-icon-btn danger"
+                        onClick={() => removeSubject(i)}
+                        title="Remove subject"
+                      >
+                        <Trash2 style={{ width: 14, height: 14 }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginTop: 24 }}>
+                <DSButton
+                  variant="primary"
+                  size="large"
+                  loading={saving}
+                  iconBefore={!saving ? <ClipboardList style={{ width: 16, height: 16 }} /> : undefined}
+                  onClick={createSession}
+                  style={{ width: "100%" }}
+                >
+                  {saving ? "Creating…" : "Create Session"}
+                </DSButton>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <ThemeToggle />
+        <NavAvatar />
+      </TopNavigation>
+
+      {/* ── Page Content ──────────────────────────────────────── */}
+      <PageContainer>
+        <DSPageHeader title="Exam Sessions" description={description} />
+
+        {/* Loading skeletons */}
+        {loading && (
+          <div className="ds-grid-cards">
             {[1, 2, 3].map((k) => (
-              <div key={k} className="h-40 animate-pulse rounded-2xl bg-muted" />
+              <div key={k} className="ds-skeleton" style={{ height: 188 }} />
             ))}
           </div>
-        ) : sessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
-            <BookOpen className="h-14 w-14 text-muted-foreground/40" />
-            <div>
-              <p className="text-lg font-semibold text-foreground">No sessions yet</p>
-              <p className="text-sm text-muted-foreground">Create your first exam session to get started.</p>
-            </div>
-            <Button onClick={() => setOpen(true)} className="gap-2">
-              <PlusCircle className="h-4 w-4" /> Create Session
-            </Button>
-          </div>
-        ) : (
-          <>
-            <p className="mb-4 text-sm text-muted-foreground">{sessions.length} session{sessions.length !== 1 ? "s" : ""} found</p>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {sessions.map((s) => (
-                <Card
-                  key={s._id}
-                  className="group cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5"
-                  onClick={() => router.push(`/session/${s._id}`)}
-                >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="truncate text-base">{s.className}</CardTitle>
-                        <CardDescription className="mt-0.5 flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {s.month} {s.year}
-                        </CardDescription>
-                      </div>
-                      <Badge variant="secondary" className="shrink-0">{s.subjects.length} sub</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="mb-3 truncate text-xs text-muted-foreground">{s.instituteName}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        {s.totalDays} days total
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive opacity-0 transition-opacity group-hover:opacity-100"
-                          onClick={(e) => deleteSession(e, s._id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </>
         )}
-      </main>
+
+        {/* Empty state */}
+        {!loading && sessions.length === 0 && (
+          <DSEmptyState
+            icon={<BookOpen style={{ width: 28, height: 28, color: "var(--ds-primary)" }} />}
+            title="No sessions yet"
+            description="Create your first exam session to start recording student marks and attendance."
+            action={
+              <DSButton
+                variant="primary"
+                size="default"
+                iconBefore={<PlusCircle style={{ width: 16, height: 16 }} />}
+                onClick={() => setOpen(true)}
+              >
+                Create First Session
+              </DSButton>
+            }
+          />
+        )}
+
+        {/* Session cards */}
+        {!loading && sessions.length > 0 && (
+          <div className="ds-grid-cards">
+            {sessions.map((s) => (
+              <DSCard
+                key={s._id}
+                onClick={() => router.push(`/session/${s._id}`)}
+                accent
+              >
+                <DSCard.Body>
+                  {/* Header row */}
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--ds-text)", lineHeight: 1.3 }}>
+                      {s.className}
+                    </h3>
+                    <button
+                      className="ds-icon-btn compact danger ds-card__delete-btn"
+                      style={{ marginTop: -2, marginRight: -4 }}
+                      onClick={(e) => deleteSession(e, s._id)}
+                      title="Delete session"
+                      aria-label="Delete session"
+                    >
+                      <Trash2 style={{ width: 13, height: 13 }} />
+                    </button>
+                  </div>
+
+                  <p style={{ margin: "0 0 16px", fontSize: 12, color: "var(--ds-text-subtle)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {s.instituteName}
+                  </p>
+
+                  {/* Info pills */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+                    <div className="ds-info-pill">
+                      <Calendar style={{ width: 13, height: 13, color: "var(--ds-primary)", flexShrink: 0 }} />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {s.month} {s.year}
+                      </span>
+                    </div>
+                    <div className="ds-info-pill">
+                      <Users style={{ width: 13, height: 13, color: "var(--ds-primary)", flexShrink: 0 }} />
+                      {s.totalDays} days
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 12, borderTop: "1px solid var(--ds-border)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Hash style={{ width: 12, height: 12, color: "var(--ds-text-subtlest)" }} />
+                      <span style={{ fontSize: 12, color: "var(--ds-text-subtle)" }}>
+                        {s.subjects.length} subjects
+                      </span>
+                      <span style={{ fontSize: 12, color: "var(--ds-text-subtlest)" }}>·</span>
+                      <DSLozenge appearance="primary">
+                        {totalOutOf(s.subjects)} marks
+                      </DSLozenge>
+                    </div>
+                    <ChevronRight style={{ width: 15, height: 15, color: "var(--ds-text-subtlest)" }} />
+                  </div>
+                </DSCard.Body>
+              </DSCard>
+            ))}
+          </div>
+        )}
+      </PageContainer>
     </div>
   );
 }
