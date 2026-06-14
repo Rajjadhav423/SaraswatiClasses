@@ -28,6 +28,7 @@ import {
   Users,
   ClipboardList,
   Hash,
+  UserPlus,
 } from "lucide-react";
 
 /* ── DS Components ── */
@@ -184,6 +185,17 @@ export default function HomePage() {
           <p style={{ margin: 0, fontSize: 12, color: "var(--ds-text-subtle)" }}>
             Mark Memo Management System
           </p>
+        </div>
+
+        <div className="hidden sm:block">
+          <DSButton
+            variant="default"
+            size="default"
+            iconBefore={<UserPlus style={{ width: 15, height: 15 }} />}
+            onClick={() => router.push("/admissions")}
+          >
+            Admissions
+          </DSButton>
         </div>
 
         <Dialog open={open} onOpenChange={setOpen}>

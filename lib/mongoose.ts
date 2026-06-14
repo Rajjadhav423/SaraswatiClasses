@@ -17,8 +17,19 @@ const cached: { conn: typeof mongoose | null; promise: Promise<typeof mongoose> 
 export async function connectDB() {
   if (cached.conn) return cached.conn;
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, { bufferCommands: false });
+    cached.promise = mongoose.connect(MONGODB_URI, {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 8000,
+      socketTimeoutMS: 10000,
+      connectTimeoutMS: 8000,
+      maxPoolSize: 10,
+    });
   }
-  cached.conn = await cached.promise;
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
+  }
   return cached.conn;
 }

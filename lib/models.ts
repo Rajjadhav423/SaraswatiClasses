@@ -57,3 +57,46 @@ const StudentSchema = new Schema<IStudent>(
 );
 
 export const Student = models.Student ?? model<IStudent>("Student", StudentSchema);
+
+// ─── Admission ────────────────────────────────────────────────────────────────
+export interface IAdmission {
+  _id: mongoose.Types.ObjectId;
+  studentName: string;
+  fatherName: string;
+  motherName: string;
+  mobile: string;
+  altMobile?: string;
+  address: string;
+  dob: string;
+  admissionDate: string;
+  schoolName?: string;
+  standard: string;
+  academicYear: string;
+  subjects: string[];
+  totalFee: number;
+  installments?: { label: string; amount: number; paid: boolean }[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const AdmissionSchema = new Schema<IAdmission>(
+  {
+    studentName:   { type: String, required: true },
+    fatherName:    { type: String, required: true },
+    motherName:    { type: String, required: true },
+    mobile:        { type: String, required: true },
+    altMobile:     { type: String },
+    address:       { type: String, required: true },
+    dob:           { type: String, required: true },
+    admissionDate: { type: String, required: true },
+    schoolName:    { type: String },
+    standard:      { type: String, required: true },
+    academicYear:  { type: String, required: true },
+    subjects:      [{ type: String }],
+    totalFee:      { type: Number, required: true },
+    installments:  [{ label: String, amount: Number, paid: { type: Boolean, default: false } }],
+  },
+  { timestamps: true }
+);
+
+export const Admission = models.Admission ?? model<IAdmission>("Admission", AdmissionSchema);
