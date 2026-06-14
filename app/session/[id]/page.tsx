@@ -428,7 +428,7 @@ export default function SessionPage() {
               </div>
               <span style={{ fontSize: 12, color: "var(--ds-text-subtle)" }}>{session.month} {session.year}</span>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+            <div className="ds-toppers-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
               {toppers.map(({ row, total, pct }, idx) => (
                 <div
                   key={`${row._id ?? row.name}-${idx}`}

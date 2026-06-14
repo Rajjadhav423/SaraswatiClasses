@@ -49,12 +49,17 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+html, body {
+  overflow-x: hidden;
+}
+
 body {
   font-family: var(--font-geist-sans), sans-serif;
 }
 
 * {
   box-sizing: border-box;
+  min-width: 0;
 }
 
 button,

@@ -955,42 +955,44 @@ button, input, textarea, select { font: inherit; }
 ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 639px) {
 
-  /* ── Nav: tighter padding & gap ── */
-  .ds-nav-inner { padding: 0 10px; gap: 6px; }
+  /* ── Contain all horizontal overflow ── */
+  .ds-nav { overflow: hidden; }
+  .ds-nav-inner { overflow: hidden; padding: 0 10px; gap: 6px; }
 
   /* ── Page: tighter padding, bottom room for FAB ── */
-  .ds-page, .ds-page--sm { padding: 12px 12px 88px; }
+  .ds-page, .ds-page--sm { padding: 12px 12px 88px; overflow-x: hidden; }
 
   /* ── Page header ── */
   .ds-page-header { margin-bottom: 14px; }
   .ds-page-header h1 { font-size: 20px; }
 
-  /* ── Meta row: horizontal scroll, no wrap ── */
+  /* ── Meta row: horizontal scroll, no wrap, no bleed ── */
   .ds-meta-row {
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     padding-bottom: 4px;
-    margin-right: -12px;
-    padding-right: 12px;
+    margin-right: 0;
+    padding-right: 0;
   }
   .ds-meta-row::-webkit-scrollbar { display: none; }
   .ds-meta-chip { flex-shrink: 0; }
 
-  /* ── Stats grid: already 2-col, tighten spacing ── */
+  /* ── Stats grid: 2-col, tighten spacing ── */
   .ds-grid-stats { gap: 10px; margin-bottom: 14px; }
   .ds-stat-card { padding: 12px 14px; gap: 10px; }
   .ds-stat-card__icon { width: 36px; height: 36px; flex-shrink: 0; }
   .ds-stat-card__value { font-size: 22px; }
   .ds-stat-card__label { font-size: 10px; letter-spacing: 0.06em; }
 
-  /* ── Toppers ── */
-  .ds-toppers { margin-bottom: 14px; }
+  /* ── Toppers: force single column on mobile ── */
+  .ds-toppers { margin-bottom: 14px; overflow: hidden; }
+  .ds-toppers-grid { grid-template-columns: 1fr !important; }
   .ds-section-header { padding: 10px 14px; }
 
   /* ── Toolbar ── */
-  .ds-toolbar { flex-wrap: nowrap; gap: 8px; margin-bottom: 10px; }
+  .ds-toolbar { flex-wrap: nowrap; gap: 8px; margin-bottom: 10px; overflow: hidden; }
   .ds-toolbar > div:first-child { flex: 1; max-width: none !important; }
 
   /* ── Cards grid: tighter gap ── */
@@ -1002,7 +1004,7 @@ button, input, textarea, select { font: inherit; }
   .ds-btn--compact { min-height: 32px; }
   .ds-icon-btn { min-width: 36px; min-height: 36px; }
 
-  /* ── Inputs: font-size 16px prevents iOS auto-zoom ── */
+  /* ── Inputs: 16px prevents iOS auto-zoom on focus ── */
   .ds-textfield { font-size: 16px !important; }
 
   /* ── Export footer ── */
