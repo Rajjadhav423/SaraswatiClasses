@@ -50,32 +50,44 @@ function DialogContent({
   return (
     <DialogPortal>
       <DialogOverlay />
-      <DialogPrimitive.Popup
-        data-slot="dialog-content"
-        className={cn(
-          "fixed inset-4 z-50 flex flex-col rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none overflow-hidden gap-4 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:w-full sm:max-w-sm sm:max-h-[90vh] sm:-translate-x-1/2 sm:-translate-y-1/2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          className
-        )}
-        {...props}
+      {/* Wrapper handles positioning — inline styles avoid all Tailwind/base-ui conflicts */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 50,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1rem",
+        }}
       >
-        {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            render={
-              <Button
-                variant="ghost"
-                className="absolute top-2 right-2"
-                size="icon-sm"
-              />
-            }
-          >
-            <XIcon
-            />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Popup>
+        <DialogPrimitive.Popup
+          data-slot="dialog-content"
+          className={cn(
+            "relative w-full max-w-sm max-h-[calc(100vh-2rem)] flex flex-col gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none overflow-hidden data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            className
+          )}
+          {...props}
+        >
+          {children}
+          {showCloseButton && (
+            <DialogPrimitive.Close
+              data-slot="dialog-close"
+              render={
+                <Button
+                  variant="ghost"
+                  className="absolute top-2 right-2"
+                  size="icon-sm"
+                />
+              }
+            >
+              <XIcon />
+              <span className="sr-only">Close</span>
+            </DialogPrimitive.Close>
+          )}
+        </DialogPrimitive.Popup>
+      </div>
     </DialogPortal>
   )
 }
