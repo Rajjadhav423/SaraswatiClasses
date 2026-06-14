@@ -197,12 +197,12 @@ export default function HomePage() {
           />
 
           {/* ── Create Session Modal ── */}
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Exam Session</DialogTitle>
             </DialogHeader>
 
-            <div style={{ padding: "20px 24px 24px" }}>
+            <div style={{ padding: "20px 24px 24px", overflowY: "auto", flex: 1 }}>
               {/* Institute */}
               <div className="ds-field" style={{ marginBottom: 16 }}>
                 <label className="ds-field__label">Institute Name</label>

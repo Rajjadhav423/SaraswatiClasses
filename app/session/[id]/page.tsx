@@ -699,7 +699,8 @@ export default function SessionPage() {
             </div>
 
             {/* ── Mobile cards ── */}
-            <div className="sm:hidden flex flex-col gap-3">
+            <div className="sm:hidden">
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {visibleRows.map(({ row, originalIdx: i }) => {
                 const total = rowTotal(row);
                 const pct   = totalOutOf > 0 ? (total / totalOutOf) * 100 : 0;
@@ -810,6 +811,7 @@ export default function SessionPage() {
                   </div>
                 );
               })}
+            </div>
             </div>
           </>
         )}
