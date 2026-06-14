@@ -337,7 +337,7 @@ export default function HomePage() {
           </DialogContent>
         </Dialog>
 
-        <ThemeToggle />
+        <div className="hidden sm:block"><ThemeToggle /></div>
         <NavAvatar />
       </TopNavigation>
 

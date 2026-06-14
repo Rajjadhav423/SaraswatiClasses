@@ -946,30 +946,26 @@ button, input, textarea, select { font: inherit; }
 [data-theme="dark"] [data-slot="select-item"]:hover { background: #2C333A !important; }
 
 /* ═══════════════════════════════════════════════════════════════
+   FLOATING ACTION BUTTON
+═══════════════════════════════════════════════════════════════ */
+.ds-fab { display: none; }
+
+/* ═══════════════════════════════════════════════════════════════
    MOBILE — max-width 639px  (below Tailwind sm breakpoint)
 ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 639px) {
 
   /* ── Nav: tighter padding & gap ── */
-  .ds-nav-inner { padding: 0 12px; gap: 6px; }
+  .ds-nav-inner { padding: 0 10px; gap: 6px; }
 
-  /* ── Dialog: bottom-sheet style on mobile ── */
-  [data-slot="dialog-content"] {
-    width: 100% !important;
-    max-width: 100% !important;
-    max-height: 92dvh !important;
-    border-radius: 16px 16px 0 0 !important;
-    top: auto !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    transform: none !important;
-  }
+  /* ── Page: tighter padding, bottom room for FAB ── */
+  .ds-page, .ds-page--sm { padding: 12px 12px 88px; }
 
-  /* ── Page: tighter padding ── */
-  .ds-page, .ds-page--sm { padding: 16px 12px 80px; }
+  /* ── Page header ── */
+  .ds-page-header { margin-bottom: 14px; }
+  .ds-page-header h1 { font-size: 20px; }
 
-  /* ── Meta row: horizontal scroll instead of wrap ── */
+  /* ── Meta row: horizontal scroll, no wrap ── */
   .ds-meta-row {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -982,47 +978,77 @@ button, input, textarea, select { font: inherit; }
   .ds-meta-row::-webkit-scrollbar { display: none; }
   .ds-meta-chip { flex-shrink: 0; }
 
-  /* ── Stats: already 2-col, reduce padding ── */
+  /* ── Stats grid: already 2-col, tighten spacing ── */
+  .ds-grid-stats { gap: 10px; margin-bottom: 14px; }
   .ds-stat-card { padding: 12px 14px; gap: 10px; }
-  .ds-stat-card__icon { width: 36px; height: 36px; }
+  .ds-stat-card__icon { width: 36px; height: 36px; flex-shrink: 0; }
   .ds-stat-card__value { font-size: 22px; }
-  .ds-stat-card__label { font-size: 11px; }
+  .ds-stat-card__label { font-size: 10px; letter-spacing: 0.06em; }
 
-  /* ── Toppers: single column ── */
-  .ds-toppers [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
-
-  /* ── Section header: smaller text ── */
+  /* ── Toppers ── */
+  .ds-toppers { margin-bottom: 14px; }
   .ds-section-header { padding: 10px 14px; }
 
-  /* ── Cards: full-width, slightly less padding ── */
+  /* ── Toolbar ── */
+  .ds-toolbar { flex-wrap: nowrap; gap: 8px; margin-bottom: 10px; }
+  .ds-toolbar > div:first-child { flex: 1; max-width: none !important; }
+
+  /* ── Cards grid: tighter gap ── */
+  .ds-grid-cards { gap: 12px; }
   .ds-card__body { padding: 14px; }
 
-  /* ── Page header: tighter ── */
-  .ds-page-header { margin-bottom: 16px; }
-
-  /* ── Export footer: full-width CTA ── */
-  .ds-export-footer { padding: 16px 0 env(safe-area-inset-bottom, 0); }
-  .ds-export-footer > div { max-width: 100% !important; }
-
-  /* ── Toolbar: search takes full width ── */
-  .ds-toolbar { flex-wrap: wrap; }
-  .ds-toolbar > div:first-child { max-width: 100% !important; flex: 1 1 100%; }
-
-  /* ── Buttons: comfortable touch target ── */
+  /* ── Buttons: good touch target ── */
   .ds-btn { min-height: 40px; }
   .ds-btn--compact { min-height: 32px; }
-
-  /* ── Icon buttons: larger touch target ── */
   .ds-icon-btn { min-width: 36px; min-height: 36px; }
 
-  /* ── Table: never shown on mobile (hidden sm:block) ── */
-  /* ── Mobile card improvements ── */
-  .ds-textfield { font-size: 16px; } /* prevents iOS zoom on focus */
-}
+  /* ── Inputs: font-size 16px prevents iOS auto-zoom ── */
+  .ds-textfield { font-size: 16px !important; }
 
-/* ── Safe area for notched phones ── */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .ds-export-footer {
-    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  /* ── Export footer ── */
+  .ds-export-footer { padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .ds-export-footer > div { max-width: 100% !important; }
+
+  /* ── Dialog: bottom-sheet on mobile ── */
+  [data-slot="dialog-content"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92dvh !important;
+    border-radius: 16px 16px 0 0 !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
+  }
+
+  /* ── FAB: floating add button ── */
+  .ds-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--ds-primary);
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    z-index: 90;
+    box-shadow: 0 4px 16px rgba(0, 82, 204, 0.40), 0 1px 4px rgba(0,0,0,0.20);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ds-fab:active {
+    transform: scale(0.92);
+    box-shadow: 0 2px 8px rgba(0, 82, 204, 0.35);
+  }
+
+  [data-theme="dark"] .ds-fab {
+    background: #579DFF;
+    box-shadow: 0 4px 16px rgba(87, 157, 255, 0.35), 0 1px 4px rgba(0,0,0,0.40);
   }
 }

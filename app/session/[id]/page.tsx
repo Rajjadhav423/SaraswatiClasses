@@ -269,22 +269,24 @@ export default function SessionPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <DSButton
-            variant="default" size="default"
-            iconBefore={<PlusCircle style={{ width: 14, height: 14 }} />}
-            onClick={addRow}
-            className="hidden sm:inline-flex"
-          >
-            Add Student
-          </DSButton>
-          <DSButton
-            variant="default" size="default"
-            iconBefore={<Eye style={{ width: 14, height: 14 }} />}
-            onClick={() => window.open(`/preview/${id}`, "_blank")}
-            className="hidden sm:inline-flex"
-          >
-            Preview
-          </DSButton>
+          <div className="hidden sm:block">
+            <DSButton
+              variant="default" size="default"
+              iconBefore={<PlusCircle style={{ width: 14, height: 14 }} />}
+              onClick={addRow}
+            >
+              Add Student
+            </DSButton>
+          </div>
+          <div className="hidden sm:block">
+            <DSButton
+              variant="default" size="default"
+              iconBefore={<Eye style={{ width: 14, height: 14 }} />}
+              onClick={() => window.open(`/preview/${id}`, "_blank")}
+            >
+              Preview
+            </DSButton>
+          </div>
           <DSButton
             variant="primary" size="default"
             loading={exporting}
@@ -295,7 +297,7 @@ export default function SessionPage() {
           </DSButton>
         </div>
 
-        <ThemeToggle />
+        <div className="hidden sm:block"><ThemeToggle /></div>
         <NavAvatar />
       </TopNavigation>
 
@@ -850,6 +852,15 @@ export default function SessionPage() {
           </div>
         )}
       </PageContainer>
+
+      {/* Mobile FAB — Add Student */}
+      <button
+        className="ds-fab print:hidden"
+        onClick={addRow}
+        aria-label="Add student"
+      >
+        <PlusCircle style={{ width: 22, height: 22 }} />
+      </button>
     </div>
   );
 }
