@@ -41,6 +41,7 @@ import { ThemeToggle }  from "@/ui/components/ThemeToggle";
 import { NavAvatar }    from "@/ui/components/NavAvatar";
 import { TopNavigation }  from "@/ui/layout/TopNavigation";
 import { PageContainer }  from "@/ui/layout/PageContainer";
+import { ConfirmDialog }  from "@/ui/components/ConfirmDialog";
 
 /* ── Constants ── */
 const MONTHS = [
@@ -86,6 +87,7 @@ export default function HomePage() {
   const [open, setOpen]         = useState(false);
   const [form, setForm]         = useState(EMPTY_FORM);
   const [saving, setSaving]     = useState(false);
+  const [delConfirm, setDelConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
 
   const loadSessions = useCallback(async () => {
     try {
@@ -149,9 +151,15 @@ export default function HomePage() {
     }
   }
 
-  async function deleteSession(e: React.MouseEvent, id: string) {
+  function deleteSession(e: React.MouseEvent, id: string) {
     e.stopPropagation();
-    if (!confirm("Delete this session and all its student data?")) return;
+    setDelConfirm({ open: true, id });
+  }
+
+  async function doDeleteSession() {
+    if (!delConfirm.id) return;
+    const id = delConfirm.id;
+    setDelConfirm({ open: false, id: null });
     await fetch(`/api/sessions/${id}`, { method: "DELETE" });
     toast.success("Session deleted");
     loadSessions();
@@ -349,7 +357,7 @@ export default function HomePage() {
           </DialogContent>
         </Dialog>
 
-        <div className="hidden sm:block"><ThemeToggle /></div>
+        <ThemeToggle />
         <NavAvatar />
       </TopNavigation>
 
@@ -449,6 +457,16 @@ export default function HomePage() {
           </div>
         )}
       </PageContainer>
+
+      <ConfirmDialog
+        open={delConfirm.open}
+        title="Delete Session"
+        message="Delete this session and all its student data? This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={doDeleteSession}
+        onCancel={() => setDelConfirm({ open: false, id: null })}
+      />
     </div>
   );
 }

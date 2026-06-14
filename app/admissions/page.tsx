@@ -37,6 +37,7 @@ import { ThemeToggle }  from "@/ui/components/ThemeToggle";
 import { NavAvatar }    from "@/ui/components/NavAvatar";
 import { TopNavigation }  from "@/ui/layout/TopNavigation";
 import { PageContainer }  from "@/ui/layout/PageContainer";
+import { ConfirmDialog }  from "@/ui/components/ConfirmDialog";
 
 import {
   STANDARDS,
@@ -90,6 +91,7 @@ export default function AdmissionsPage() {
   const [form, setForm]             = useState({ ...EMPTY_FORM });
   const [saving, setSaving]         = useState(false);
   const [search, setSearch]         = useState("");
+  const [delConfirm, setDelConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
 
   const loadAdmissions = useCallback(async () => {
     try {
@@ -166,9 +168,15 @@ export default function AdmissionsPage() {
     }
   }
 
-  async function deleteAdmission(e: React.MouseEvent, id: string) {
+  function deleteAdmission(e: React.MouseEvent, id: string) {
     e.stopPropagation();
-    if (!confirm("Delete this admission record?")) return;
+    setDelConfirm({ open: true, id });
+  }
+
+  async function doDeleteAdmission() {
+    if (!delConfirm.id) return;
+    const id = delConfirm.id;
+    setDelConfirm({ open: false, id: null });
     await fetch(`/api/admissions/${id}`, { method: "DELETE" });
     toast.success("Deleted");
     loadAdmissions();
@@ -365,7 +373,7 @@ export default function AdmissionsPage() {
           </DialogContent>
         </Dialog>
 
-        <div className="hidden sm:block"><ThemeToggle /></div>
+        <ThemeToggle />
         <NavAvatar />
       </TopNavigation>
 
@@ -497,6 +505,16 @@ export default function AdmissionsPage() {
       <button className="ds-fab print:hidden" onClick={() => setOpen(true)} aria-label="Add admission">
         <PlusCircle style={{ width: 22, height: 22 }} />
       </button>
+
+      <ConfirmDialog
+        open={delConfirm.open}
+        title="Delete Admission"
+        message="Delete this admission record? This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={doDeleteAdmission}
+        onCancel={() => setDelConfirm({ open: false, id: null })}
+      />
     </div>
   );
 }

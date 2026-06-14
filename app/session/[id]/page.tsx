@@ -23,6 +23,7 @@ import { ThemeToggle } from "@/ui/components/ThemeToggle";
 import { NavAvatar }   from "@/ui/components/NavAvatar";
 import { TopNavigation }  from "@/ui/layout/TopNavigation";
 import { PageContainer }  from "@/ui/layout/PageContainer";
+import { ConfirmDialog }  from "@/ui/components/ConfirmDialog";
 
 /* ── Types ── */
 interface Subject { name: string; outOf: number }
@@ -93,6 +94,7 @@ export default function SessionPage() {
   const [editingMeta, setEditingMeta] = useState(false);
   const [metaForm, setMetaForm]     = useState({ month: "", year: "", totalDays: "" });
   const [savingMeta, setSavingMeta] = useState(false);
+  const [delConfirm, setDelConfirm] = useState<{ open: boolean; rowIndex: number | null }>({ open: false, rowIndex: null });
 
   const load = useCallback(async () => {
     const [sr, studR] = await Promise.all([
@@ -174,9 +176,15 @@ export default function SessionPage() {
     }
   }
 
-  async function deleteRow(i: number) {
+  function deleteRow(i: number) {
+    setDelConfirm({ open: true, rowIndex: i });
+  }
+
+  async function doDeleteRow() {
+    const i = delConfirm.rowIndex;
+    if (i === null) return;
     const row = rows[i];
-    if (!confirm(`Remove "${row.name || "this student"}"?`)) return;
+    setDelConfirm({ open: false, rowIndex: null });
     if (row._id) {
       await fetch(`/api/sessions/${id}/students/${row._id}`, { method: "DELETE" });
       toast.success("Student removed");
@@ -297,7 +305,7 @@ export default function SessionPage() {
           </DSButton>
         </div>
 
-        <div className="hidden sm:block"><ThemeToggle /></div>
+        <ThemeToggle />
         <NavAvatar />
       </TopNavigation>
 
@@ -861,6 +869,16 @@ export default function SessionPage() {
       >
         <PlusCircle style={{ width: 22, height: 22 }} />
       </button>
+
+      <ConfirmDialog
+        open={delConfirm.open}
+        title="Remove Student"
+        message={`Remove "${delConfirm.rowIndex !== null ? (rows[delConfirm.rowIndex]?.name || "this student") : "this student"}"? This cannot be undone.`}
+        confirmLabel="Remove"
+        variant="danger"
+        onConfirm={doDeleteRow}
+        onCancel={() => setDelConfirm({ open: false, rowIndex: null })}
+      />
     </div>
   );
 }
