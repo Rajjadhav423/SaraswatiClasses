@@ -228,7 +228,7 @@ export default function AdmissionsPage() {
               <DialogTitle>New Student Admission</DialogTitle>
             </DialogHeader>
 
-            <div style={{ padding: "16px 24px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
 
               {/* Standard + Academic Year */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>

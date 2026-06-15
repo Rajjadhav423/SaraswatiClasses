@@ -195,16 +195,14 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="hidden sm:block">
-          <DSButton
-            variant="default"
-            size="default"
-            iconBefore={<UserPlus style={{ width: 15, height: 15 }} />}
-            onClick={() => router.push("/admissions")}
-          >
-            Admissions
-          </DSButton>
-        </div>
+        <DSButton
+          variant="default"
+          size="default"
+          iconBefore={<UserPlus style={{ width: 15, height: 15 }} />}
+          onClick={() => router.push("/admissions")}
+        >
+          <span className="hidden sm:inline">Admissions</span>
+        </DSButton>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger
@@ -222,7 +220,7 @@ export default function HomePage() {
               <DialogTitle>Create New Exam Session</DialogTitle>
             </DialogHeader>
 
-            <div style={{ padding: "20px 24px 24px", overflowY: "auto", flex: 1 }}>
+            <div style={{ overflowY: "auto", flex: 1 }}>
               {/* Institute */}
               <div className="ds-field" style={{ marginBottom: 16 }}>
                 <label className="ds-field__label">Institute Name</label>
