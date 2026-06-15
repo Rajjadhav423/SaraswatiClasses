@@ -212,7 +212,7 @@ export default function AdmissionsPage() {
           </p>
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen} disablePointerDismissal>
+        <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger
             render={
               <DSButton variant="primary" size="default" iconBefore={<PlusCircle style={{ width: 16, height: 16 }} />}>
