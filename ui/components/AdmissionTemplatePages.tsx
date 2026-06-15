@@ -1,0 +1,268 @@
+"use client";
+
+import { FEE_STRUCTURE, STANDARDS, type Standard } from "@/lib/admission-config";
+
+export const TEMPLATE_W = 700;
+const F = "Arial, Helvetica, sans-serif";
+
+function ULine({ style }: { style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      flex: 1, borderBottom: "1px solid #000", minHeight: 20,
+      paddingLeft: 6, fontSize: 12, fontFamily: F,
+      display: "flex", alignItems: "flex-end", paddingBottom: 2,
+      ...style,
+    }} />
+  );
+}
+
+function TC({ children, style }: { children?: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <td style={{ border: "1px solid #000", padding: "4px 8px", fontFamily: F, fontSize: 12, ...style }}>
+      {children}
+    </td>
+  );
+}
+
+export function FrontPage() {
+  const yr2 = new Date().getFullYear().toString().slice(2);
+
+  return (
+    <div style={{ width: TEMPLATE_W, background: "#fff", fontFamily: F, padding: "16px 20px", boxSizing: "border-box" }}>
+
+      <div style={{ textAlign: "center", fontSize: 11, fontStyle: "italic", color: "#555", marginBottom: 6 }}>
+        || विद्या विनयेन शोभते ||
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/image.png" alt="" style={{ width: 56, height: 56, objectFit: "contain", flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: 2, fontFamily: "'Arial Black', Arial, sans-serif", lineHeight: 1.2 }}>
+            SHREE SARASWATI CLASSES
+          </div>
+          <div style={{ fontSize: 10, color: "#333", marginTop: 2, lineHeight: 1.4 }}>
+            Address:- Boldhane Aaba Building Hiwarkheda Road, Kannad Dist Chhatrapati Sambhaji.
+          </div>
+          <div style={{ fontSize: 10, color: "#333" }}>
+            Nagar Director: Vijaykumar Mande 9421314040&nbsp;&nbsp;Director: Dasharath Somase 9423705300
+          </div>
+        </div>
+      </div>
+
+      <hr style={{ border: "none", borderTop: "2px solid #000", margin: "6px 0 12px" }} />
+
+      {/* STD + Academic Year */}
+      <div style={{ display: "flex", gap: 24, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>STD / CLASS :-</span>
+          <ULine style={{ minWidth: 100 }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>ACADEMIC YEAR :-</span>
+          <ULine style={{ minWidth: 80 }} />
+        </div>
+      </div>
+
+      {/* Name + Photo */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "flex-end", marginBottom: 8, gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>Name Of Student :-</span>
+            <ULine style={{ fontSize: 13, fontWeight: 700 }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", marginBottom: 10, gap: 6 }}>
+            <span style={{ width: 136, flexShrink: 0 }} />
+            <ULine />
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", marginBottom: 8, gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>ADDRESS&nbsp;&nbsp;&nbsp;&nbsp;:-</span>
+            <ULine />
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+            <span style={{ width: 136, flexShrink: 0 }} />
+            <ULine />
+          </div>
+        </div>
+        <div style={{ width: 85, height: 105, border: "1.5px solid #000", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: 10, color: "#555", lineHeight: 1.6 }}>
+          PASTE<br />PASSPORT<br />SIZE<br />PHOTO
+        </div>
+      </div>
+
+      {/* Father / Mother */}
+      <div style={{ display: "flex", gap: 20, marginBottom: 10, marginTop: 6 }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>Father&apos;s Name :-</span>
+          <ULine />
+        </div>
+        <div style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>Mother&apos;s Name :-</span>
+          <ULine />
+        </div>
+      </div>
+
+      {/* Mobile No */}
+      <div style={{ display: "flex", gap: 40, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, flexShrink: 0 }}>Mobile No:</span>
+          <ULine style={{ minWidth: 140 }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, flexShrink: 0 }}>Mobile No:</span>
+          <ULine style={{ minWidth: 140 }} />
+        </div>
+      </div>
+
+      {/* Dates */}
+      <div style={{ display: "flex", gap: 24, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>ADMISSION DATE:-</span>
+          <ULine style={{ minWidth: 120 }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>DATE OF BIRTH :-</span>
+          <ULine style={{ minWidth: 120 }} />
+        </div>
+      </div>
+
+      {/* School */}
+      <div style={{ display: "flex", alignItems: "flex-end", marginBottom: 6, gap: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", width: 150, flexShrink: 0 }}>NAME OF SCHOOL :-</span>
+        <ULine />
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginBottom: 14 }}>
+        <span style={{ width: 150, flexShrink: 0 }} />
+        <ULine />
+      </div>
+
+      {/* Subject Table */}
+      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>SUBJECT:-</div>
+      <table style={{ borderCollapse: "collapse", width: "100%", marginBottom: 14 }}>
+        <thead>
+          <tr>
+            <TC style={{ fontWeight: 700, textAlign: "center", width: 46 }}>S/N</TC>
+            <TC style={{ fontWeight: 700 }}>SUBJECT</TC>
+            <TC style={{ fontWeight: 700, textAlign: "center", width: 88 }}>YES</TC>
+            <TC style={{ fontWeight: 700, textAlign: "center", width: 88 }}>NO</TC>
+          </tr>
+        </thead>
+        <tbody>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+            <tr key={n}>
+              <TC style={{ textAlign: "center" }}>{n}</TC>
+              <TC style={{ height: 22 }} />
+              <TC />
+              <TC />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Fee Structure */}
+      <div style={{ textAlign: "center", marginBottom: 8 }}>
+        <span style={{ display: "inline-block", border: "1px solid #000", padding: "3px 32px", fontSize: 12, fontWeight: 700, letterSpacing: 1 }}>
+          FEES STRUCTURE
+        </span>
+      </div>
+      <table style={{ borderCollapse: "collapse", width: "100%", marginBottom: 16 }}>
+        <thead>
+          <tr>
+            <TC style={{ fontWeight: 700, textAlign: "center", width: 60 }}>STD</TC>
+            <TC style={{ fontWeight: 700, textAlign: "center", width: 100 }}>TOTAL FEES</TC>
+            <TC style={{ fontWeight: 700, textAlign: "center" }}>FEES WITH INSTALLMENT</TC>
+          </tr>
+        </thead>
+        <tbody>
+          {(STANDARDS as readonly Standard[]).map((std) => {
+            const f = FEE_STRUCTURE[std];
+            const instStr = f.installments
+              ? f.installments.map((i) => `${i.label.toUpperCase()}-${yr2}: ₹${i.amount.toLocaleString("en-IN")}`).join("   +   ")
+              : "—";
+            return (
+              <tr key={std}>
+                <TC style={{ textAlign: "center", fontWeight: 700 }}>{std}</TC>
+                <TC style={{ textAlign: "center", fontWeight: 700 }}>₹{f.total.toLocaleString("en-IN")}/-</TC>
+                <TC>{instStr}</TC>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, fontStyle: "italic" }}>
+        *एकदा भरलेली फीस कुठल्याही सबबीवर परत मिळणार नाही*
+      </div>
+    </div>
+  );
+}
+
+const RULES = [
+  "क्लासेसला दररोज उपस्थित राहणे अनिवार्य आहे.",
+  "सोबत रोज येताना वही 3 आणणे बंधनकारक आहे.",
+  "3 पुस्तके आणण बंधनकारक आहे.",
+  "क्लास मध्ये मोबाईल वापरण्यास सक्त मनाई आहे.",
+  "ई 8 वी ते 12 वी MHT-CET NEET यांची फीस 2 टप्यात 4 महिण्याच्या अंतरात भरणे बंधनकारक आहे.",
+  "फीस वेळेवर न भरल्यास क्लास मध्ये बसू दिले जाणार नाही वेळोवेळी क्लासला गैरहजर राहिल्यास व नियमांचे उलंघन केल्यास क्लासमधून काढून टाकण्यात येईल.",
+  "पालक मेळाव्यात विद्यार्थ्यां सोबत माता - पिता उपस्थित राहणे बंधनकारक आहे.",
+  "क्लास मध्ये आणलेल्या वस्तू सांभाळण्याची जवाबदारी विद्यार्थ्यांची आहे.",
+  "क्लास मधील अभ्यास होमवर्क व पाठांतर नियमितपणे करावा लागेल.",
+  "कुठल्याही कारणास्तव क्लास सोडल्यास / अथवा विद्यार्थ्याच्या गैरवर्तृणूकीच्या कारणास्तव क्लास मधून काढून टाकल्यास भरलेली फीस परत मिळणार नाही.",
+];
+
+export function BackPage() {
+  return (
+    <div style={{ width: TEMPLATE_W, background: "#fff", fontFamily: F, padding: "16px 20px 20px", boxSizing: "border-box" }}>
+      <ul style={{ paddingLeft: 20, margin: "0 0 16px", listStyleType: "disc" }}>
+        {RULES.map((r, i) => (
+          <li key={i} style={{ fontSize: 13, lineHeight: 1.65, marginBottom: 3 }}>{r}</li>
+        ))}
+      </ul>
+
+      <div style={{ fontSize: 13, fontWeight: 700, textDecoration: "underline", marginBottom: 14 }}>
+        वरील सर्व नियम व अटी मला मान्य असून मी माझ्या पाळ्याचा प्रवेश निश्चित करत आहे.
+      </div>
+
+      <hr style={{ border: "none", borderTop: "1px solid #000", marginBottom: 12 }} />
+
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 5 }}>Fees Structure :</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 20px", marginBottom: 20, fontSize: 13 }}>
+        <span>7th — ₹8,000</span>
+        <span>8th — ₹10,000</span>
+        <span>9th — ₹15,000</span>
+        <span>10th — ₹18,000</span>
+        <span style={{ gridColumn: "1 / -1" }}>11th + 12th + MHT-CET + NEET — ₹45,000</span>
+      </div>
+
+      <table style={{ borderCollapse: "collapse", width: "100%", border: "1px solid #000" }}>
+        <tbody>
+          <tr>
+            {[
+              { mr: "पालकांची सही",       en: "Parent / Guardian Signature" },
+              { mr: "विद्यार्थ्यांची सही", en: "Student's Signature" },
+            ].map(({ mr, en }) => (
+              <td key={mr} style={{ border: "1px solid #000", padding: "8px 12px 4px", width: "50%", verticalAlign: "bottom" }}>
+                <div style={{ height: 48 }} />
+                <hr style={{ border: "none", borderTop: "1px solid #333", margin: "0 0 3px" }} />
+                <div style={{ fontSize: 12, fontWeight: 700 }}>{mr}</div>
+                <div style={{ fontSize: 10, color: "#555" }}>{en}</div>
+              </td>
+            ))}
+          </tr>
+          <tr>
+            {[
+              { mr: "संचालक सही",    en: "Director's Signature" },
+              { mr: "मॅनेजरची सही", en: "Manager's Signature" },
+            ].map(({ mr, en }) => (
+              <td key={mr} style={{ border: "1px solid #000", padding: "8px 12px 4px", verticalAlign: "bottom" }}>
+                <div style={{ height: 48 }} />
+                <hr style={{ border: "none", borderTop: "1px solid #333", margin: "0 0 3px" }} />
+                <div style={{ fontSize: 12, fontWeight: 700 }}>{mr}</div>
+                <div style={{ fontSize: 10, color: "#555" }}>{en}</div>
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   Dialog,
@@ -26,6 +27,8 @@ import {
   Phone,
   Calendar,
   School,
+  ArrowLeft,
+  Download,
 } from "lucide-react";
 
 import { DSButton }     from "@/ui/components/Button";
@@ -38,6 +41,7 @@ import { NavAvatar }    from "@/ui/components/NavAvatar";
 import { TopNavigation }  from "@/ui/layout/TopNavigation";
 import { PageContainer }  from "@/ui/layout/PageContainer";
 import { ConfirmDialog }  from "@/ui/components/ConfirmDialog";
+import { FrontPage, BackPage } from "@/ui/components/AdmissionTemplatePages";
 
 import {
   STANDARDS,
@@ -85,6 +89,7 @@ const EMPTY_FORM = {
 
 /* ════════════════════════════════════════════════════════════ */
 export default function AdmissionsPage() {
+  const router = useRouter();
   const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [loading, setLoading]       = useState(true);
   const [open, setOpen]             = useState(false);
@@ -92,6 +97,8 @@ export default function AdmissionsPage() {
   const [saving, setSaving]         = useState(false);
   const [search, setSearch]         = useState("");
   const [delConfirm, setDelConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
+  const frontPageRef = useRef<HTMLDivElement>(null);
+  const backPageRef  = useRef<HTMLDivElement>(null);
 
   const loadAdmissions = useCallback(async () => {
     try {
@@ -189,6 +196,52 @@ export default function AdmissionsPage() {
     return !q || a.studentName.toLowerCase().includes(q) || a.standard.toLowerCase().includes(q) || a.mobile.includes(q);
   });
 
+  async function downloadBlankTemplate() {
+    const front = frontPageRef.current;
+    const back  = backPageRef.current;
+    if (!front || !back) { toast.error("Template not ready"); return; }
+
+    const toastId = toast.loading("Generating PDF…");
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+
+      // Strip all stylesheets from the clone — our template is inline-only.
+      // html2canvas 1.x can't parse oklch() (used by Tailwind/shadcn vars on body).
+      const onclone = (doc: Document) => {
+        doc.querySelectorAll('link[rel="stylesheet"], style').forEach(el => el.remove());
+        doc.body.setAttribute("style", "margin:0;padding:0;background:#fff;color:#000;");
+      };
+      const opts = { scale: 2, useCORS: true, allowTaint: true, logging: false, backgroundColor: "#ffffff", onclone };
+      const [fc, bc] = await Promise.all([
+        html2canvas(front, opts),
+        html2canvas(back,  opts),
+      ]);
+
+      const pdf  = new jsPDF({ unit: "px", format: "a4", orientation: "portrait" });
+      const pw   = pdf.internal.pageSize.getWidth();
+      const ph   = pdf.internal.pageSize.getHeight();
+
+      const addCanvas = (canvas: HTMLCanvasElement, first: boolean) => {
+        if (!first) pdf.addPage();
+        const ratio = canvas.height / canvas.width;
+        const imgH  = Math.min(pw * ratio, ph);
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pw, imgH);
+      };
+
+      addCanvas(fc, true);
+      addCanvas(bc, false);
+
+      pdf.save("admission_blank_template.pdf");
+      toast.success("Downloaded!", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not generate PDF", { id: toastId });
+    }
+  }
+
   const availableSubjects = form.standard ? SUBJECTS_BY_STANDARD[form.standard as Standard] ?? [] : [];
   const feeEntry = form.standard ? FEE_STRUCTURE[form.standard as Standard] : null;
 
@@ -197,6 +250,15 @@ export default function AdmissionsPage() {
 
       {/* ── Top Navigation ── */}
       <TopNavigation>
+        <button
+          className="ds-icon-btn"
+          onClick={() => router.push("/")}
+          title="Back to home"
+          aria-label="Back to home"
+        >
+          <ArrowLeft style={{ width: 18, height: 18 }} />
+        </button>
+
         <Image
           src="/image.png"
           alt="Saraswati Classes Logo"
@@ -211,6 +273,16 @@ export default function AdmissionsPage() {
             Admission Management
           </p>
         </div>
+
+        <DSButton
+          variant="default"
+          size="default"
+          iconBefore={<Download style={{ width: 15, height: 15 }} />}
+          onClick={downloadBlankTemplate}
+          title="Download blank admission template"
+        >
+          <span className="hidden sm:inline">Blank Template</span>
+        </DSButton>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger
@@ -517,6 +589,12 @@ export default function AdmissionsPage() {
         onConfirm={doDeleteAdmission}
         onCancel={() => setDelConfirm({ open: false, id: null })}
       />
+
+      {/* Hidden template pages used by html2canvas for PDF download */}
+      <div style={{ position: "fixed", left: -9999, top: 0, opacity: 0, pointerEvents: "none", zIndex: -1 }}>
+        <div ref={frontPageRef}><FrontPage /></div>
+        <div ref={backPageRef}><BackPage /></div>
+      </div>
     </div>
   );
 }
