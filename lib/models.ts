@@ -83,7 +83,7 @@ const AdmissionSchema = new Schema<IAdmission>(
   {
     studentName:   { type: String, required: true },
     fatherName:    { type: String, required: true },
-    motherName:    { type: String, required: true },
+    motherName:    { type: String, default: "" },
     mobile:        { type: String, required: true },
     altMobile:     { type: String },
     address:       { type: String, required: true },

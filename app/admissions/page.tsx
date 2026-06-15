@@ -138,6 +138,7 @@ export default function AdmissionsPage() {
     if (!form.studentName.trim()) { toast.error("Student name is required"); return; }
     if (!form.fatherName.trim())  { toast.error("Father's name is required"); return; }
     if (!form.mobile.trim())      { toast.error("Mobile number is required"); return; }
+    if (!form.address.trim())     { toast.error("Address is required"); return; }
     if (!form.standard)           { toast.error("Standard is required"); return; }
     if (!form.dob)                { toast.error("Date of birth is required"); return; }
 
@@ -161,8 +162,9 @@ export default function AdmissionsPage() {
       setOpen(false);
       setForm({ ...EMPTY_FORM });
       loadAdmissions();
-    } catch {
-      toast.error("Could not create admission. Check MongoDB connection.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Could not save admission: ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -210,7 +212,7 @@ export default function AdmissionsPage() {
           </p>
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={setOpen} disablePointerDismissal>
           <DialogTrigger
             render={
               <DSButton variant="primary" size="default" iconBefore={<PlusCircle style={{ width: 16, height: 16 }} />}>
@@ -251,8 +253,8 @@ export default function AdmissionsPage() {
 
               {/* Fee preview */}
               {feeEntry && (
-                <div style={{ background: "var(--ds-background-accent-blue-subtlest, #e8f0fe)", border: "1px solid var(--ds-border-accent-blue, #b3c7f7)", borderRadius: 6, padding: "10px 14px" }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ds-text-accent-blue, #0052cc)" }}>
+                <div style={{ background: "var(--ds-brand-bg)", border: "1px solid var(--ds-border-bold)", borderRadius: 6, padding: "10px 14px" }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ds-primary)" }}>
                     Total Fee: {fmtINR(feeEntry.total)}
                   </p>
                   {feeEntry.installments && (

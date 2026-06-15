@@ -30,7 +30,7 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={(v: boolean) => !v && onCancel()}>
+    <Dialog open={open} onOpenChange={(v: boolean) => !v && onCancel()} disablePointerDismissal>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
