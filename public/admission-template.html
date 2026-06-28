@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admission Form — 10th Std — Shree Saraswati Classes</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { font-family: Arial, Helvetica, sans-serif; background: #94a3b8; }
+
+  /* ── Toolbar ── */
+  #toolbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: #1e293b; color: #fff;
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 20px;
+  }
+  #toolbar .title { font-weight: bold; font-size: 14px; }
+  #toolbar .spacer { flex: 1; }
+  .btn-print {
+    background: #1A56DB; color: #fff; border: none; border-radius: 6px;
+    padding: 7px 18px; font-weight: bold; cursor: pointer; font-size: 14px;
+  }
+
+  /* ── Screen preview ── */
+  #preview {
+    padding-top: 64px; padding-bottom: 40px;
+    display: flex; flex-direction: column; align-items: center; gap: 24px;
+    min-height: 100vh;
+  }
+  .pg-label {
+    font-size: 11px; color: #1e293b; font-weight: 600;
+    align-self: flex-start; margin-left: calc(50% - 350px); margin-top: 8px;
+  }
+  .shadow { box-shadow: 0 4px 24px rgba(0,0,0,.28); }
+
+  /* ── Page ── */
+  .page {
+    width: 700px; background: #fff;
+    padding: 18px 22px;
+    font-family: Arial, Helvetica, sans-serif;
+    border: 2px solid #000;
+  }
+
+  /* ── Field rows ── */
+  .fr { display: flex; align-items: flex-end; gap: 6px; margin-bottom: 9px; }
+  .lbl { font-size: 12px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+  .ul  {
+    flex: 1; border-bottom: 1px solid #000;
+    min-height: 18px; padding-bottom: 2px;
+  }
+
+  /* ── Tables ── */
+  table  { border-collapse: collapse; width: 100%; }
+  td, th {
+    border: 1px solid #000;
+    padding: 5px 9px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    vertical-align: top;
+  }
+
+  /* ── Print ── */
+  #po { display: none; }
+
+  @media print {
+    body     { background: #fff !important; margin: 0; padding: 0; }
+    #toolbar, #preview { display: none !important; }
+    #po      { display: block !important; }
+    .pb      { page-break-after: always; }
+    @page {
+      margin: 10mm;
+      size: A4 portrait;
+      @top-left     { content: ""; }
+      @top-center   { content: ""; }
+      @top-right    { content: ""; }
+      @bottom-left  { content: ""; }
+      @bottom-center{ content: ""; }
+      @bottom-right { content: ""; }
+    }
+    .page    {
+      width: 100% !important;
+      max-width: none !important;
+      height: calc(297mm - 20mm);
+      border: 2px solid #000;
+      padding: 14px 18px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <span class="title">Admission Form — 10th Std</span>
+  <div class="spacer"></div>
+  <span style="font-size:12px;color:#94a3b8;">Print dialog → More settings → uncheck <b style="color:#fff;">Headers and footers</b></span>
+  <button class="btn-print" onclick="window.print()">&#128424; Print / Save as PDF</button>
+</div>
+
+<!-- SCREEN PREVIEW -->
+<div id="preview">
+  <div class="pg-label">Page 1 — Student Details</div>
+  <div class="shadow" id="s1"></div>
+  <div class="pg-label">Page 2 — Terms &amp; Conditions</div>
+  <div class="shadow" id="s2"></div>
+</div>
+
+<!-- PRINT OUTPUT -->
+<div id="po">
+  <div id="p1"></div>
+  <div class="pb"></div>
+  <div id="p2"></div>
+</div>
+
+<script>
+var YR = String(new Date().getFullYear()).slice(2);
+
+/* ════════════════════════════════════════
+   PAGE 1
+════════════════════════════════════════ */
+function page1() { return `
+<div class="page">
+
+  <!-- ① HEADER SECTION -->
+  <div style="padding-top:14px;">
+  <div style="text-align:center;font-size:11px;font-style:italic;color:#555;margin-bottom:8px;">
+    || विद्या विनयेन शोभते ||
+  </div>
+
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px;padding-left:50px;">
+    <img src="image.png" style="width:72px;height:72px;object-fit:contain;flex-shrink:0;" />
+    <div style="flex:1;">
+      <div style="font-size:22px;font-weight:900;letter-spacing:2px;font-family:'Arial Black',Arial,sans-serif;line-height:1.15;">
+        SHREE SARASWATI CLASSES
+      </div>
+      <div style="font-size:10px;color:#222;margin-top:3px;line-height:1.5;">
+        Address:- Boldhane Aaba Building Hiwarkheda Road, Kannad Dist Chhatrapati Sambhaji.
+      </div>
+      <div style="font-size:10px;color:#222;">
+        Nagar Director: Vijaykumar Mande 9421314040 &nbsp;&nbsp; Director: Dasharath Somase 9423705300
+      </div>
+    </div>
+  </div>
+
+  <hr style="border:none;border-top:2.5px solid #000;margin:6px 0 0;" />
+  </div>
+
+  <!-- ② STUDENT FIELDS SECTION -->
+  <div>
+  <!-- name + photo -->
+  <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:0;">
+    <div style="flex:1;">
+      <div class="fr">
+        <span class="lbl">Name Of Student&nbsp;:-</span>
+        <span class="ul"></span>
+      </div>
+      <div class="fr">
+        <span style="width:148px;flex-shrink:0;display:inline-block;"></span>
+        <span class="ul"></span>
+      </div>
+      <div class="fr" style="margin-top:2px;">
+        <span class="lbl">ADDRESS &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:-</span>
+        <span class="ul"></span>
+      </div>
+      <div class="fr">
+        <span style="width:148px;flex-shrink:0;display:inline-block;"></span>
+        <span class="ul"></span>
+      </div>
+    </div>
+    <!-- photo box -->
+    <div style="width:88px;height:108px;border:1.5px solid #000;flex-shrink:0;
+                display:flex;flex-direction:column;align-items:center;justify-content:center;
+                text-align:center;font-size:10px;color:#555;line-height:1.65;">
+      PASTE<br>PASSPORT<br>SIZE<br>PHOTO
+    </div>
+  </div>
+
+  <!-- mobile -->
+  <div style="display:flex;gap:40px;margin-top:4px;margin-bottom:9px;">
+    <div class="fr" style="margin-bottom:0;">
+      <span class="lbl">Mo:</span>
+      <span class="ul" style="min-width:150px;"></span>
+    </div>
+    <div class="fr" style="margin-bottom:0;">
+      <span class="lbl">Mo:</span>
+      <span class="ul" style="min-width:150px;"></span>
+    </div>
+  </div>
+
+  <!-- dates -->
+  <div style="display:flex;gap:30px;margin-bottom:9px;">
+    <div class="fr" style="margin-bottom:0;">
+      <span class="lbl">ADMISSION DATE:-</span>
+      <span class="ul" style="min-width:110px;"></span>
+    </div>
+    <div class="fr" style="margin-bottom:0;">
+      <span class="lbl">DATE OF BIRTH&nbsp;&nbsp;:-</span>
+      <span class="ul" style="min-width:110px;"></span>
+    </div>
+  </div>
+
+  <!-- school -->
+  <div class="fr" style="margin-bottom:5px;">
+    <span class="lbl" style="width:150px;flex-shrink:0;">NAME OF SCHOOL&nbsp;&nbsp;:-</span>
+    <span class="ul"></span>
+  </div>
+  <div class="fr" style="margin-bottom:0;">
+    <span style="width:150px;flex-shrink:0;display:inline-block;"></span>
+    <span class="ul"></span>
+  </div>
+  </div>
+
+  <!-- ③ SUBJECT SECTION -->
+  <div>
+  <!-- subject heading -->
+  <div style="font-size:12px;font-weight:700;margin-bottom:5px;">SUBJECT:-</div>
+
+  <!-- subject table -->
+  <table style="margin-bottom:0;">
+    <thead>
+      <tr>
+        <th style="width:42px;text-align:center;">S/N</th>
+        <th style="text-align:left;">SUBJECT</th>
+        <th style="width:84px;text-align:center;">YES</th>
+        <th style="width:84px;text-align:center;">NO</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="height:28px;"><td style="text-align:center;">1</td><td>MATH</td><td></td><td></td></tr>
+      <tr style="height:28px;"><td style="text-align:center;">2</td><td>PHYSICS</td><td></td><td></td></tr>
+      <tr style="height:28px;"><td style="text-align:center;">3</td><td>CHEMISTRY</td><td></td><td></td></tr>
+      <tr style="height:28px;"><td style="text-align:center;">4</td><td>BIOLOGY</td><td></td><td></td></tr>
+      <tr style="height:28px;"><td style="text-align:center;">5</td><td>ENGLISH</td><td></td><td></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <!-- ④ FEES SECTION -->
+  <div>
+  <!-- fees heading -->
+  <div style="text-align:center;margin-bottom:12px;">
+    <span style="display:inline-block;border:1px solid #000;padding:4px 36px;font-size:12px;font-weight:700;letter-spacing:1px;">
+      FEES STRUCTURE
+    </span>
+  </div>
+
+  <!-- fees table -->
+  <table style="margin-bottom:0;">
+    <thead>
+      <tr>
+        <th rowspan="3" style="width:60px;text-align:center;vertical-align:middle;padding:4px 6px;">STD</th>
+        <th rowspan="3" style="width:100px;text-align:center;vertical-align:middle;padding:4px 6px;">TOTAL FEES</th>
+        <th colspan="2" style="text-align:center;padding:4px 6px;">FEES WITH INSTALLMENT</th>
+      </tr>
+      <tr>
+        <th style="text-align:center;width:50%;padding:4px 6px;">1<sup>ST</sup> INSTALLMENT</th>
+        <th style="text-align:center;width:50%;padding:4px 6px;">2<sup>ND</sup> INSTALLMENT</th>
+      </tr>
+      <tr style="height:22px;">
+        <td style="padding:4px 6px;"></td>
+        <td style="padding:4px 6px;"></td>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="height:50px;">
+        <td style="text-align:center;font-weight:700;font-size:12px;padding:6px;">11th+12th+MHT-CET</td>
+        <td style="text-align:center;font-weight:700;font-size:14px;padding:6px;">45,000/-</td>
+        <td style="padding:6px;"></td>
+        <td style="padding:6px;"></td>
+      </tr>
+      <tr style="height:50px;">
+        <td style="padding:6px;"></td>
+        <td style="padding:6px;"></td>
+        <td style="padding:6px;"></td>
+        <td style="padding:6px;"></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <!-- ⑤ DISCLAIMER -->
+  <div style="text-align:center;font-size:13px;font-weight:700;font-style:italic;">
+    *एकदा भरलेली फीस कुठल्याही सबबीवर परत मिळणार नाही*
+  </div>
+
+</div>`; }
+
+/* ════════════════════════════════════════
+   PAGE 2
+════════════════════════════════════════ */
+function page2() {
+  var rules = [
+    "क्लासेसला दररोज उपस्थित राहणे अनिवार्य आहे.",
+    "सोबत रोज येताना वही 3 आणणे बंधनकारक आहे.",
+    "3 पुस्तके आणण बंधनकारक आहे.",
+    "क्लास मध्ये मोबाईल वापरण्यास सक्त मनाई आहे.",
+    "ई 8 वी ते 12 वी MHT-CET NEET यांची फीस 2 टप्यात 4 महिण्याच्या अंतरात भरणे बंधनकारक आहे.",
+    "फीस वेळेवर न भरल्यास क्लास मध्ये बसू दिले जाणार नाही वेळोवेळी क्लासला गैरहजर राहिल्यास व नियमांचे उलंघन केल्यास क्लासमधून काढून टाकण्यात येईल.",
+    "पालक मेळाव्यात विद्यार्थ्यां सोबत माता - पिता उपस्थित राहणे बंधनकारक आहे.",
+    "क्लास मध्ये आणलेल्या वस्तू सांभाळण्याची जवाबदारी विद्यार्थ्यांची आहे.",
+    "क्लास मधील अभ्यास होमवर्क व पाठांतर नियमितपणे करावा लागेल.",
+    "कुठल्याही कारणास्तव क्लास सोडल्यास / अथवा विद्यार्थ्याच्या गैरवर्तृणूकीच्या कारणास्तव क्लास मधून काढून टाकल्यास भरलेली फीस परत मिळणार नाही.",
+  ];
+  return `
+<div class="page" style="padding-bottom:24px;">
+
+  <ul style="padding-left:22px;margin:0 0 18px;list-style-type:disc;">
+    ${rules.map(function(r){ return '<li style="font-size:13px;line-height:1.7;margin-bottom:4px;">'+r+'</li>'; }).join('')}
+  </ul>
+
+  <!-- agreement -->
+  <div style="font-size:13px;font-weight:700;text-decoration:underline;margin-bottom:16px;line-height:1.55;">
+    वरील सर्व नियम व अटी मला मान्य असून मी माझ्या पाळ्याचा प्रवेश निश्चित करत आहे.
+  </div>
+
+  <hr style="border:none;border-top:1px solid #000;margin-bottom:20px;" />
+
+  <!-- signature table -->
+  <table>
+    <tbody>
+      <tr>
+        <td style="width:50%;padding:10px 14px 6px;vertical-align:bottom;border:1px solid #000;">
+          <div style="height:52px;"></div>
+          <hr style="border:none;border-top:1px solid #333;margin:0 0 4px;" />
+          <div style="font-size:13px;font-weight:700;">पालकांची सही</div>
+          <div style="font-size:11px;color:#555;">Parent / Guardian Signature</div>
+        </td>
+        <td style="width:50%;padding:10px 14px 6px;vertical-align:bottom;border:1px solid #000;">
+          <div style="height:52px;"></div>
+          <hr style="border:none;border-top:1px solid #333;margin:0 0 4px;" />
+          <div style="font-size:13px;font-weight:700;">विद्यार्थ्यांची सही</div>
+          <div style="font-size:11px;color:#555;">Student's Signature</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:10px 14px 6px;vertical-align:bottom;border:1px solid #000;">
+          <div style="height:52px;"></div>
+          <hr style="border:none;border-top:1px solid #333;margin:0 0 4px;" />
+          <div style="font-size:13px;font-weight:700;">संचालक सही</div>
+          <div style="font-size:11px;color:#555;">Director's Signature</div>
+        </td>
+        <td style="padding:10px 14px 6px;vertical-align:bottom;border:1px solid #000;">
+          <div style="height:52px;"></div>
+          <hr style="border:none;border-top:1px solid #333;margin:0 0 4px;" />
+          <div style="font-size:13px;font-weight:700;">मॅनेजरची सही</div>
+          <div style="font-size:11px;color:#555;">Manager's Signature</div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>`; }
+
+/* inject */
+var h1 = page1(), h2 = page2();
+document.getElementById('s1').innerHTML = h1;
+document.getElementById('s2').innerHTML = h2;
+document.getElementById('p1').innerHTML = h1;
+document.getElementById('p2').innerHTML = h2;
+</script>
+</body>
+</html>
